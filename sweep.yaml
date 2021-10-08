@@ -1,0 +1,45 @@
+description: first sweep. No idea what I am doing.
+method: random
+metric:
+  goal: minimize
+  name: val/avg_acc
+name: first_sweep
+parameters:
+  batch_size:
+    value: 64
+  dataset:
+    value: CUB
+  log_dir:
+    value: AUTO
+  log_every:
+    value: 50
+  lr:
+    distribution: log_uniform
+    max: -2.3
+    min: -11.5
+  metadata_path:
+    value: results/CUB/waterbird_sweep/metadata_aug.csv
+  n_epochs:
+    value: 100
+  project_name:
+    value: spurious
+  root_dir:
+    value: ./cub
+  save_step:
+    value: 10
+  shift_type:
+    value: confounder
+  target_name:
+    value: waterbird_complete95
+  confounder_names:
+    value: forest2water2
+  val_fraction:
+    value: 0.2
+  weight_decay:
+    distribution: uniform
+    max: 1
+    min: 5e-05
+  gpu:
+    value: 1
+program: run_expt.py
+
