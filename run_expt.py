@@ -230,7 +230,7 @@ if __name__ == "__main__":
                         choices=shift_types,
                         required=True)
                         
-    parser.add_argument("--wandb", action="store_true", default=True)
+    parser.add_argument("--wandb", action="store_true", default=False)
     parser.add_argument("--project_name", type=str, default="spurious", help="wandb project name")
     # Confounders
     parser.add_argument("-t", "--target_name")

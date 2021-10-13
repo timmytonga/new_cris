@@ -16,7 +16,7 @@ from pytorch_transformers import AdamW, WarmupLinearSchedule
 import pandas as pd
 import os
 
-device = torch.device('cuda:0')
+# device = torch.device('cuda:0')
 
 
 def run_epoch(
@@ -39,7 +39,7 @@ def run_epoch(
     """
     scheduler is only used inside this function if model is bert.
     """
-    # device = torch.device(f"cuda:{args.gpu}")
+    device = torch.device(f"cuda:{args.gpu}")
     if is_training:  # set model to train or eval
         model.train()
         if (args.model.startswith("bert") and args.use_bert_params): # or (args.model == "bert"):
@@ -51,7 +51,6 @@ def run_epoch(
         prog_bar_loader = tqdm(loader)
     else:
         prog_bar_loader = loader
-
     with torch.set_grad_enabled(is_training):
         for batch_idx, batch in enumerate(prog_bar_loader):  # main train loop
             # get data
@@ -180,7 +179,8 @@ def train(
     wandb=None,
     wandb_root_group=""
 ):
-    # device = torch.device(f"cuda:{args.gpu}")
+    device = torch.device(f"cuda:{args.gpu}")
+    torch.cuda.set_device(args.gpu)
     model = model.to(device)
 
     # process generalization adjustment stuff
