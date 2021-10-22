@@ -7,6 +7,7 @@ import torch
 from utils import Logger, CSVBatchLogger
 from data import dro_dataset
 from torch.utils.data.sampler import WeightedRandomSampler
+from copy import deepcopy
 
 
 def generate_pgl(part1_model_path, part2_data, train_data, args):
@@ -19,6 +20,7 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
 
     # first load the previous model
     modeleval = torch.load(part1_model_path)
+    modeleval.cuda()
     # initialize logger and loader for part2
     part2eval_csv_logger = CSVBatchLogger(os.path.join(part2eval_log_dir, f"part2_eval.csv"),
                                           part2_data.n_groups,
@@ -46,7 +48,7 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
         normalize_loss=args.use_normalized_loss,
         btl=args.btl,
         min_var_weight=args.minimum_variational_weight,
-        joint_dro_alpha=args.joint_dro_alpha,
+        joint_dro_alpha=args.joint_dro_alpha
     )
 
     # then run an epoch on part2 and during that run, generate a csv containing the status of each example
@@ -72,14 +74,19 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
     n_groups = n_classes*2
     true_y = part2_df['y_true_pseudogroup_eval_epoch_0_val']
     pred_y = part2_df['y_pred_pseudogroup_eval_epoch_0_val']
+    true_g = part2_df['g_true_pseudogroup_eval_epoch_0_val']
     misclassified = true_y != pred_y
     sampler, upsampled_part2 = None, None
-    group_array = misclassified + true_y * 2  # times 2 to make group (true_y, status)
-    group_counts = (torch.arange(n_groups).unsqueeze(1) == torch.tensor(group_array)).sum(1).float()
+    group_array = (misclassified + true_y * 2).astype("int")  # times 2 to make group (true_y, status)
+    part2_pgl_data = deepcopy(part2_data)
+    part2_pgl_data.set_group_array(group_array, n_groups)
+    # print(f"DEBUG: part2_pgl_data group count {part2_pgl_data.group_counts()} "
+    #       f"vs. real group count {get_group_counts(group_array, n_groups)}")
     if args.upweight == 0:  # this means we do equal sampling
-        group_weights = len(part2_data) / group_counts
-        weights = group_weights[group_array]
-        sampler = WeightedRandomSampler(weights, len(part2_data), replacement=True)
+        pass
+        # group_weights = len(part2_data) / group_counts
+        # weights = group_weights[group_array]
+        # sampler = WeightedRandomSampler(weights, len(part2_data), replacement=True)
     else:  # this means we upweight
         assert args.upweight == -1 or args.upweight > 0
         aug_indices = part2_df['indices_pseudogroup_eval_epoch_0_val'][misclassified]
@@ -88,4 +95,15 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
         combined_indices = list(aug_indices) * upweight_factor + list(part2_df['indices_pseudogroup_eval_epoch_0_val'])
         upsampled_part2 = torch.utils.data.Subset(train_data.dataset.dataset, combined_indices)
 
-    return upsampled_part2, sampler
+    return part2_pgl_data, upsampled_part2
+
+
+def get_group_counts(group_array, n_groups):
+    group_counts = (torch.arange(n_groups).unsqueeze(1) == torch.tensor(group_array)).sum(1).float()
+    return group_counts
+
+def analyze_pgl_quality(pgl, true_g):
+    """
+    This means we have to match minority class with none. Implement some group mapping logic here...
+    """
+    pass

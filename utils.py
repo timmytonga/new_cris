@@ -10,6 +10,7 @@ import torch.nn as nn
 import torchvision
 from models import model_attributes
 from data.folds import Subset, ConcatDataset
+from data.data import dataset_attributes, shift_types
 
 
 class Logger(object):
@@ -169,7 +170,97 @@ def hinge_loss(yhat, y):
     return torch_loss(yhat[:, 1], yhat[:, 0], y)
 
 
-def get_model(model, pretrained, resume, n_classes, dataset, log_dir):
+def parser_add_objective_args(parser):
+    """
+        helper to add certain parameters to args
+    """
+    # Objective
+    parser.add_argument("--loss_type", default="erm",
+                        choices=["erm", "group_dro", "joint_dro"])
+    parser.add_argument("--alpha", type=float, default=0.2)
+    parser.add_argument("--generalization_adjustment", default="0.0")
+    parser.add_argument("--automatic_adjustment",
+                        default=False,
+                        action="store_true")
+    parser.add_argument("--robust_step_size", default=0.01, type=float)
+    parser.add_argument("--joint_dro_alpha", default=1, type=float,
+                        help=("Size param for CVaR joint DRO."
+                              " Only used if loss_type is joint_dro"))
+    parser.add_argument("--use_normalized_loss",
+                        default=False,
+                        action="store_true")
+    parser.add_argument("--btl", default=False, action="store_true")
+    parser.add_argument("--hinge", default=False, action="store_true")
+
+
+def parser_add_settings(parser):
+    # wandb: wandb.ai
+    parser.add_argument("--wandb", action="store_true", default=False)
+    parser.add_argument("--project_name", type=str, default="splitpgl", help="wandb project name")
+    # Resume?
+    parser.add_argument("--resume", default=False, action="store_true")
+
+
+def parser_add_data_args(parser):
+    # Settings
+    parser.add_argument("-d",
+                        "--dataset",
+                        choices=dataset_attributes.keys(),
+                        required=True)
+    parser.add_argument("-s",
+                        "--shift_type",
+                        choices=shift_types,
+                        required=True)
+    # Confounders
+    parser.add_argument("-t", "--target_name")
+    parser.add_argument("-c", "--confounder_names", nargs="+")
+    # Label shifts
+    parser.add_argument("--minority_fraction", type=float)
+    parser.add_argument("--imbalance_ratio", type=float)
+    # Data
+    parser.add_argument("--fraction", type=float, default=1.0)
+    parser.add_argument("--root_dir", default=None)
+    parser.add_argument("--reweight_groups", action="store_true",
+                        default=False,
+                        help="set to True if loss_type is group DRO")
+    parser.add_argument("--augment_data", action="store_true", default=False)
+    parser.add_argument("--val_fraction", type=float, default=0.1)
+
+
+def parser_add_misc_args(parser):
+    # Misc
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--show_progress", default=False, action="store_true")
+    parser.add_argument("--log_dir", default="./logs")
+    parser.add_argument("--log_every", default=50, type=int)
+    parser.add_argument("--save_step", type=int, default=10)
+    parser.add_argument("--save_best", action="store_true", default=False)
+    parser.add_argument("--save_last", action="store_true", default=False)
+    parser.add_argument("--use_bert_params", type=int, default=1)
+    parser.add_argument("--num_folds_per_sweep", type=int, default=5)
+    parser.add_argument("--num_sweeps", type=int, default=4)
+    parser.add_argument("--q", type=float, default=0.7)
+    parser.add_argument('--gpu', type=int, default=0)
+    parser.add_argument(
+        "--metadata_csv_name",
+        type=str,
+        default="metadata.csv",
+        help="name of the csv data file (dataset csv has to be placed in dataset folder).",
+    )
+    parser.add_argument("--fold", default=None)
+
+
+def parser_add_optimization_args(parser):
+    parser.add_argument("--n_epochs", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--scheduler", action="store_true", default=False)
+    parser.add_argument("--weight_decay", type=float, default=0.0001)
+    parser.add_argument("--gamma", type=float, default=0.1)
+    parser.add_argument("--minimum_variational_weight", type=float, default=0)
+
+
+def get_model(model, pretrained, resume, n_classes, dataset, log_dir, train_data=None):
     if resume:
         model = torch.load(os.path.join(log_dir, "last_model.pth"))
         d = train_data.input_size()[0]

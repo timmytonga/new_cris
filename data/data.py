@@ -48,19 +48,31 @@ def prepare_data(args, train, return_full_dataset=False):
 
 
 def log_data(data, logger):
-    logger.write("Training Data...\n")
-    for group_idx in range(data["train_data"].n_groups):
+    for data_name in ["train_data", "val_data", "test_data"]:
+        d = data[data_name]
+        if d is not None:
+            log_single_data(d, logger, data_name=data_name)
+    # logger.write("Training Data...\n")
+    # for group_idx in range(data["train_data"].n_groups):
+    #     logger.write(
+    #         f'    {data["train_data"].group_str(group_idx)}: n = {data["train_data"].group_counts()[group_idx]:.0f}\n'
+    #     )
+    # logger.write("Validation Data...\n")
+    # for group_idx in range(data["val_data"].n_groups):
+    #     logger.write(
+    #         f'    {data["val_data"].group_str(group_idx)}: n = {data["val_data"].group_counts()[group_idx]:.0f}\n'
+    #     )
+    # if data["test_data"] is not None:
+    #     logger.write("Test Data...\n")
+    #     for group_idx in range(data["test_data"].n_groups):
+    #         logger.write(
+    #             f'    {data["test_data"].group_str(group_idx)}: n = {data["test_data"].group_counts()[group_idx]:.0f}\n'
+    #         )
+
+
+def log_single_data(data, logger, data_name=None):
+    logger.write(f"{data_name}...\n")
+    for group_idx in range(data.n_groups):
         logger.write(
-            f'    {data["train_data"].group_str(group_idx)}: n = {data["train_data"].group_counts()[group_idx]:.0f}\n'
+            f'    {data.group_str(group_idx)}: n = {data.group_counts()[group_idx]:.0f}\n'
         )
-    logger.write("Validation Data...\n")
-    for group_idx in range(data["val_data"].n_groups):
-        logger.write(
-            f'    {data["val_data"].group_str(group_idx)}: n = {data["val_data"].group_counts()[group_idx]:.0f}\n'
-        )
-    if data["test_data"] is not None:
-        logger.write("Test Data...\n")
-        for group_idx in range(data["test_data"].n_groups):
-            logger.write(
-                f'    {data["test_data"].group_str(group_idx)}: n = {data["test_data"].group_counts()[group_idx]:.0f}\n'
-            )

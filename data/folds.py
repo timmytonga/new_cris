@@ -40,6 +40,13 @@ class Subset(torch.utils.data.Dataset):
         else:
             return self.group_array
 
+    def set_group_array(self, group_array):
+        """
+        Danger? Modifying the group array of the main dataset
+        """
+        self.dataset.group_array[self.indices] = group_array
+        self.group_array = group_array
+
     def get_label_array(self, re_evaluate=True):
         if re_evaluate:
             label_array = self.dataset.get_label_array()[self.indices]

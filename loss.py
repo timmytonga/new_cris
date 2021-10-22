@@ -19,8 +19,7 @@ class LossComputer:
         step_size=0.01,
         normalize_loss=False,
         btl=False,
-        joint_dro_alpha=None,
-        device=torch.device("cuda")
+        joint_dro_alpha=None
     ):
         assert loss_type in ["group_dro", "erm", "joint_dro"]
 

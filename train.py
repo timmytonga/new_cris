@@ -80,6 +80,7 @@ def run_epoch(
             if batch_idx == 0:
                 acc_y_pred = np.argmax(outputs.detach().cpu().numpy(), axis=1)
                 acc_y_true = y.cpu().numpy()
+                acc_g_true = g.cpu().numpy()
                 indices = data_idx.cpu().numpy()
                 
                 probs = outputs.detach().cpu().numpy()
@@ -89,6 +90,7 @@ def run_epoch(
                     np.argmax(outputs.detach().cpu().numpy(), axis=1)
                 ])
                 acc_y_true = np.concatenate([acc_y_true, y.cpu().numpy()])
+                acc_g_true = np.concatenate([acc_g_true, g.cpu().numpy()])
                 indices = np.concatenate([indices, data_idx.cpu().numpy()])
                 probs = np.concatenate([probs, outputs.detach().cpu().numpy()], axis = 0)
                 
@@ -98,6 +100,7 @@ def run_epoch(
             output_df[f"y_pred_{run_name}"] = acc_y_pred
             output_df[f"y_true_{run_name}"] = acc_y_true
             output_df[f"indices_{run_name}"] = indices
+            output_df[f"g_true_{run_name}"] = acc_g_true
             
             for class_ind in range(probs.shape[1]):
                 output_df[f"pred_prob_{run_name}_{class_ind}"] = probs[:, class_ind]
@@ -179,9 +182,9 @@ def train(
     wandb=None,
     wandb_root_group=""
 ):
-    device = torch.device(f"cuda:{args.gpu}")
-    torch.cuda.set_device(args.gpu)
-    model = model.to(device)
+    # device = torch.device(f"cuda:{args.gpu}")
+    # torch.cuda.set_device(args.gpu)
+    model = model.cuda()  # the device should've been set universally in the beginning...
 
     # process generalization adjustment stuff
     adjustments = [float(c) for c in args.generalization_adjustment.split(",")]

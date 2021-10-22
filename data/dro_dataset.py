@@ -35,9 +35,21 @@ class DRODataset(Dataset):
 
     def get_group_array(self):
         if self.process_item is None:
-            return self.dataset.get_group_array()
+            # return self.dataset.get_group_array()
+            return self.dataset.group_array
         else:
             raise NotImplementedError
+
+    def set_group_array(self, group_array, n_groups=None):
+        """
+            Set new group array for Pseudo-Group-Labels
+        """
+        if n_groups is not None:
+            self.n_groups = n_groups
+        self.dataset.set_group_array(group_array)
+        self._group_array = torch.LongTensor(group_array)
+        self._group_counts = ((torch.arange(
+            self.n_groups).unsqueeze(1) == self._group_array).sum(1).float())
 
     def get_label_array(self):
         if self.process_item is None:
