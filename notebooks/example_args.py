@@ -1,5 +1,6 @@
 import os
 
+
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""
     __getattr__ = dict.get
@@ -11,7 +12,7 @@ class MyCelebaArgs:
     def __init__(self, n_epochs=51, wd=1e-5, lr=1e-5,
                  upweight=0, run_name='celebA_run', project_name='splitpgl',
                  only_last_layer=True, seed=0, wandb=True, show_progress=True,
-                 split_proportion=0.5, gpu=0):
+                 split_proportion=0.5, gpu=0, part1_save_every=10):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
         self.root_log = f"/home/thiennguyen/research/pseudogroups/CelebA/splitpgl_sweep_logs"
@@ -40,7 +41,7 @@ class MyCelebaArgs:
             "loss_type": "erm",
             "save_best": False,
             "save_last": False,
-            "save_step": 10,
+            "save_step": part1_save_every,
             "scheduler": False,
             # "up_weight": 0,
             "batch_size": BATCH_SIZE,
@@ -51,6 +52,7 @@ class MyCelebaArgs:
             "project_name": project_name,
             "val_fraction": 0.1,
             "weight_decay": wd,
+            "subsample_minority": False,
             "metadata_path": f"myresults/celebA/{run_name}/metadata_aug.csv",
             "show_progress": show_progress,
             "imbalance_ratio": None,
@@ -109,6 +111,7 @@ class MyCelebaArgs:
             "project_name": project_name,
             "val_fraction": 0.1,
             "weight_decay": wd,
+            "subsample_minority": False,
             "metadata_path": f"myresults/celebA/{run_name}/metadata_aug.csv",
             "show_progress": show_progress,
             "imbalance_ratio": None,
@@ -177,6 +180,7 @@ class MyCUBArgs:
             "project_name": project_name,
             "val_fraction": 0.1,
             "weight_decay": wd,
+            "subsample_minority": False,
             "metadata_path": f"myresults/CUB/{run_name}/metadata_aug.csv",
             "show_progress": show_progress,
             "imbalance_ratio": None,
@@ -236,6 +240,7 @@ class MyCUBArgs:
             "project_name": project_name,
             "val_fraction": 0.1,
             "weight_decay": wd,
+            "subsample_minority": False,
             "metadata_path": f"myresults/CUB/{run_name}/metadata_aug.csv",
             "show_progress": show_progress,
             "imbalance_ratio": None,

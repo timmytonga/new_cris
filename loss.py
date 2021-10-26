@@ -207,12 +207,14 @@ class LossComputer:
 
     def get_stats(self, model=None, args=None):
         stats_dict = {}
+        group_accs = []
         for idx in range(self.n_groups):
             stats_dict[f"avg_loss_group:{idx}"] = self.avg_group_loss[
                 idx].item()
             stats_dict[f"exp_avg_loss_group:{idx}"] = self.exp_avg_loss[
                 idx].item()
             stats_dict[f"avg_acc_group:{idx}"] = self.avg_group_acc[idx].item()
+            group_accs.append(self.avg_group_acc[idx].item())
             stats_dict[
                 f"processed_data_count_group:{idx}"] = self.processed_data_counts[
                     idx].item()
@@ -226,6 +228,7 @@ class LossComputer:
         stats_dict["avg_actual_loss"] = self.avg_actual_loss.item()
         stats_dict["avg_per_sample_loss"] = self.avg_per_sample_loss.item()
         stats_dict["avg_acc"] = self.avg_acc.item()
+        stats_dict["wg_acc"] = min(group_accs)
 
         # Model stats
         if model is not None:

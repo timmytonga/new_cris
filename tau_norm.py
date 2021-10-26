@@ -22,9 +22,11 @@ def pnorm(weights, p):
     Tau_norm: Given weights, rescale each row by its norm to the pth power. (p=tau)
     """
     normB = torch.norm(weights, 2, 1)
+    # print("pre-normalize: \n", weights)
     ws = weights.clone()
     for i in range(weights.size(0)):
         ws[i] = ws[i] / torch.pow(normB[i], p)
+    # print("post_normalize: ", ws)
     return ws
 
 
@@ -37,7 +39,14 @@ def run_eval(model, reweighted_lastlayer,
     """
     old_weight = model.fc.weight.clone()
     model.fc.weight = torch.nn.Parameter(reweighted_lastlayer)
+    # print("[run_eval debug] model fc weight: ", model.fc.weight)
+    # adjustment and loss_computer stuff
     adjustments = [float(c) for c in args.generalization_adjustment.split(",")]
+    assert len(adjustments) in (1, data.n_groups)
+    if len(adjustments) == 1:
+        adjustments = np.array(adjustments * data.n_groups)
+    else:
+        adjustments = np.array(adjustments)
     loss_computer = LossComputer(
             criterion,
             loss_type=args.loss_type,
@@ -51,6 +60,7 @@ def run_eval(model, reweighted_lastlayer,
             min_var_weight=args.minimum_variational_weight,
             joint_dro_alpha=args.joint_dro_alpha,
         )
+    # then run_epoch with the modified model
     run_epoch(
         epoch=tau,
         model=model,
@@ -83,7 +93,7 @@ def main(args):
     #######################################
     #     Setup logging and wandb         #
     #######################################
-    if args.wandb:
+    if args.wandb:  # todo: fix group and jobtype appropriately
         only_last_layer = "oll" if args.part2_only_last_layer else "full"
         which_old_model = f"old-e{args.part1_model_epoch}" if args.part2_use_old_model else "new"
         real_group_labels = "_tgl" if args.use_real_group_labels else ""
@@ -144,6 +154,7 @@ def main(args):
         test_csv_logger = CSVBatchLogger(os.path.join(args.log_dir, f"test.csv"),
                                          test_data.n_groups,
                                          mode=mode)
+    data["train_data"] = None
     data["val_data"] = val_data
     data["val_loader"] = val_loader
     log_data(data, logger)
@@ -164,6 +175,7 @@ def main(args):
     model_path = os.path.join(root_log_dir, f"{args.model_epoch}_model.pth")
     # load saved model
     model = torch.load(model_path)
+    logger.write(f"**** Loaded model from {model_path} ****\n")
     if args.wandb:
         wandb.watch(model)
     fc_weights, fc_bias = model.fc.weight, model.fc.bias

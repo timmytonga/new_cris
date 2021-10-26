@@ -83,7 +83,7 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
     # print(f"DEBUG: part2_pgl_data group count {part2_pgl_data.group_counts()} "
     #       f"vs. real group count {get_group_counts(group_array, n_groups)}")
     if args.upweight == 0:  # this means we do equal sampling
-        pass
+        raise NotImplementedError
         # group_weights = len(part2_data) / group_counts
         # weights = group_weights[group_array]
         # sampler = WeightedRandomSampler(weights, len(part2_data), replacement=True)

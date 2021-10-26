@@ -11,6 +11,7 @@ import torchvision
 from models import model_attributes
 from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
+import data
 
 
 class Logger(object):
@@ -61,6 +62,7 @@ class CSVBatchLogger:
         columns.append("avg_acc")
         columns.append("model_norm_sq")
         columns.append("reg_loss")
+        columns.append("wg_acc")
 
         self.path = csv_path
         self.file = open(csv_path, mode)
@@ -319,3 +321,18 @@ def save_onnx_model(model, an_input, path, wandb_=None):
     torch.onnx.export(model, an_input, path)
     if wandb_ is not None:
         wandb_.save(path)
+
+
+def get_subsampled_indices(train_data: data.dro_dataset.DRODataset) -> np.array:
+    """ Given a DRODataset, return a np.array of indices of the dataset after subsampling"""
+    smallest_group_size = np.min(np.array(train_data.group_counts().cpu(), dtype=int))
+    # print('smallest group size = ', smallest_group_size)
+    indices = np.array([], dtype=int)
+    group_array = train_data.get_group_array()
+    for g in np.arange(train_data.n_groups):
+        group_indices = np.where((group_array == g))[0]
+        indices = np.concatenate((
+            indices, np.sort(np.random.permutation(group_indices)[:smallest_group_size])))
+        # print(f'g indices (len {len(group_indices)})', group_indices)
+    # print("final len", len(indices))
+    return indices
