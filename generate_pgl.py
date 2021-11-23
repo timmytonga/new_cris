@@ -41,14 +41,8 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
         criterion,
         loss_type=args.loss_type,
         dataset=part2_data,
-        alpha=args.alpha,
-        gamma=args.gamma,
         adj=adjustments,
         step_size=args.robust_step_size,
-        normalize_loss=args.use_normalized_loss,
-        btl=args.btl,
-        min_var_weight=args.minimum_variational_weight,
-        joint_dro_alpha=args.joint_dro_alpha
     )
 
     # then run an epoch on part2 and during that run, generate a csv containing the status of each example

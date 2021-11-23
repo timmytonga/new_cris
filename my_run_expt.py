@@ -19,6 +19,8 @@ from generate_pgl import generate_pgl
 from data.folds import Subset
 
 ROOT_LOG_DIR = "/home/thiennguyen/research/pseudogroups/"
+WANDB_LOG_DIR = os.path.join(ROOT_LOG_DIR, "wandb")
+
 RUN_TEST = False  # make this an args somehow??
 
 
@@ -34,22 +36,30 @@ def main(args):
     if args.wandb:
         group_name = os.path.basename(root_log_dir)
         if args.part == 1:
-            job_type = f"part{args.part}_{args.loss_type}"
+            job_type = f"part{args.part}{'_all' if args.part1_use_all_data else ''}_{args.loss_type}"
             # group_name = f"part{args.part}_n_epochs{args.n_epochs}_wd{args.weight_decay}_lr{args.lr}"
             tags = [f"part{args.part}"]
-        else:  # part2
-            only_last_layer = "oll" if args.part2_only_last_layer else "full"
-            which_old_model = f"old{args.part1_model_epoch}" if args.part2_use_old_model else "new"
-            real_group_labels = "tgl" if args.use_real_group_labels else f"pgl{args.upweight}"
-            rw = "rw" if args.reweight_groups else ""
-            job_type = f"part{args.part}_{real_group_labels}_{rw}_{args.loss_type}_{which_old_model}_{only_last_layer}" \
-                         f"_wd{args.weight_decay}_lr{args.lr}"
+            run_name = f"{'all' if args.part1_use_all_data else 'p'+str(args.part1_split_proportion)}_seed{args.seed}"
+        elif args.part == 2:  # part2
+            job_type = f"part2{'_oll' if args.part2_only_last_layer else ''}_{'rgl' if args.use_real_group_labels else 'pgl'}"
+            job_type += f"{'_rw' if args.reweight_groups else ''}"
+            if args.subsample_minority:
+                job_type += '_ss'
+            if args.multi_subsample:
+                job_type += '_mss'
+            job_type += f"_{args.loss_type}_wd{args.weight_decay}lr{args.lr}"
+            run_name = f"p{args.part1_split_proportion}_e{args.part1_model_epoch}_seed{args.seed}"
             tags = ['part2']
+        else:
+            raise NotImplementedError
         run = wandb.init(project=f"{args.project_name}_{args.dataset}",
                          group=group_name,
                          tags=tags,
                          job_type=job_type,
-                         name=f"p{args.part1_split_proportion}_seed{args.seed}")
+                         name=run_name,
+                         dir=WANDB_LOG_DIR,
+                         settings=wandb.Settings(start_method="fork"),
+                         resume=args.resume)
         wandb.config.update(args)
 
     # Initialize logs
@@ -76,57 +86,66 @@ def main(args):
     data = {}  # this will get set accordingly whether we use part1 or part2
     train_data, val_data, test_data = prepare_data(args, train=True)
     torch.cuda.set_device(args.gpu)
+    resume_str = f"RESUMING FROM EPOCH {args.resume_epoch}" if args.resume else ''
     if args.part == 1:
-        logger.write("****************** TRAINING PART 1 *******************\n")
+        logger.write(f"****************** TRAINING PART 1 {resume_str}*******************\n")
         ######################################################
         #   First split the data into two parts and save     #
         ######################################################
         # then split it into part1 containing f*n examples of trainset and part2 containing the rest
-        if args.part1_split_proportion < 1:
-            part1, part2 = split_data(train_data.dataset, part1_proportion=args.part1_split_proportion, seed=args.seed)
-            part1_data = dro_dataset.DRODataset(
-                part1,
-                process_item_fn=None,
-                n_groups=train_data.n_groups,
-                n_classes=train_data.n_classes,
-                group_str_fn=train_data.group_str)
-            part2_data = dro_dataset.DRODataset(
-                part2,
-                process_item_fn=None,
-                n_groups=train_data.n_groups,
-                n_classes=train_data.n_classes,
-                group_str_fn=train_data.group_str)
-        elif args.part1_split_proportion == 1:  # this means we use the full dataset in both parts
-            part1_data, part2_data = train_data, train_data
+        if args.resume:  # we should have split our data by now
+            part1and2_data = torch.load(os.path.join(args.log_dir, f"part1and2_data_p{args.part1_split_proportion}"))
+            part1_data = part1and2_data['part1']
+            # part2_data = part1and2_data['part2']
         else:
-            raise AssertionError
-
-        part1and2_data = {"part1": part1_data, "part2": part2_data}
-
-        torch.save(part1and2_data, os.path.join(args.log_dir, "part1and2_data"))
+            part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
+            part1and2_data = {"part1": part1_data, "part2": part2_data}
+            torch.save(part1and2_data, os.path.join(args.log_dir, f"part1and2_data_p{args.part1_split_proportion}"))
 
         # Now setup the data to train the initial model
-        part1_loader = dro_dataset.get_loader(part1_data,
+        if args.part1_use_all_data:
+            logger.write("*** PART1: USING ALL DATA TO TRAIN ***\n")
+            data["train_data"] = train_data
+            data["train_loader"] = dro_dataset.get_loader(train_data,
                                               train=True,
                                               reweight_groups=args.reweight_groups,
                                               **loader_kwargs)
-        data["train_data"] = part1_data
-        data["train_loader"] = part1_loader  # we train using  part1
+        else:  # else we are using only the splitted part1
+            data["train_data"] = part1_data
+            data["train_loader"] = dro_dataset.get_loader(part1_data,
+                                              train=True,
+                                              reweight_groups=args.reweight_groups,
+                                              **loader_kwargs)
         n_classes = train_data.n_classes
-        model = get_model(
-            model=args.model,
-            pretrained=not args.train_from_scratch,
-            resume=resume,
-            n_classes=n_classes,
-            dataset=args.dataset,
-            log_dir=args.log_dir,
-        )
+        if args.resume:
+            model_path = os.path.join(args.log_dir, f"{args.resume_epoch}_model.pth")
+            model = torch.load(model_path)
+            logger.write(f"Loaded Resume: {args.resume_epoch}_model.pth\n")
+        else:
+            model = get_model(
+                model=args.model,
+                pretrained=not args.train_from_scratch,
+                resume=resume,
+                n_classes=n_classes,
+                dataset=args.dataset,
+                log_dir=args.log_dir,
+            )
 
     elif args.part == 2:  # part2
         # we are given the same log_dir from part1 -- make sure we copy the right logdir somehow...
         # first we need to generate the pgls and get the loader with that
         part1_dir = os.path.join(root_log_dir, "part1")
-        part2_data = torch.load(os.path.join(part1_dir, "part1and2_data"))["part2"]
+        if args.part1_split_proportion == 1 or args.part1_split_proportion == 0:
+            part2_data = train_data
+        else:
+            data_path = os.path.join(part1_dir, f"part1and2_data_p{args.part1_split_proportion}")
+            if os.path.exists(data_path):
+                part2_data = torch.load(data_path)["part2"]
+            else:  # this is mainly to avoid retraining for all data on part1
+                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
+                part1and2_data = {"part1": part1_data, "part2": part2_data}
+                torch.save(part1and2_data, data_path)
+
         part1_model_path = os.path.join(part1_dir, f"{args.part1_model_epoch}_model.pth")
         # this should be a Subset that contains the right upweight for the right points
         if args.use_real_group_labels:  # this is simply for baseline
@@ -179,28 +198,40 @@ def main(args):
         data["train_loader"] = part2_rw_loader  # we train using part2 rw now!
         data["train_data"] = part2_data  # this is the pgl data if args.loss is group_dro
         # Initialize model
-        if not args.part2_use_old_model:
-            model = get_model(
-                model=args.model,
-                pretrained=not args.train_from_scratch,
-                resume=resume,
-                n_classes=train_data.n_classes,
-                dataset=args.dataset,
-                log_dir=args.log_dir,
-            )
+        if args.resume:  # handle some resume
+            model_path = os.path.join(args.log_dir, f"{args.resume_epoch}_model.pth")
+            model = torch.load(model_path)
         else:
-            model = torch.load(part1_model_path)  # this model_path is from the cell above -- fix this in code
+            if not args.part2_use_old_model:
+                model = get_model(
+                    model=args.model,
+                    pretrained=not args.train_from_scratch,
+                    resume=resume,
+                    n_classes=train_data.n_classes,
+                    dataset=args.dataset,
+                    log_dir=args.log_dir,
+                )
+            else:
+                model = torch.load(part1_model_path)  # this model_path is from the cell above -- fix this in code
 
+        # only last layer
         if args.part2_only_last_layer:
             assert args.part2_use_old_model, "is this intentional? Retraining and only training last layer --> linear classifier on random features?"
             # freeze everything except the last layer
-            for name, param in model.named_parameters():
-                if name not in ['fc.weight', 'fc.bias']:
-                    param.requires_grad = False
+            if args.model.startswith("bert"):
+                for name, param in model.named_parameters():
+                    if 'classifier' not in name:
+                        param.requires_grad = False
+                    else:
+                        print(f"Not freezing {name}")
+            else:
+                for name, param in model.named_parameters():
+                    if name not in ['fc.weight', 'fc.bias']:
+                        param.requires_grad = False
+
             # make sure freezing really worked
             parameters = list(filter(lambda p: p.requires_grad, model.parameters()))
-            assert len(parameters) == 2  # fc.weight, fc.bias
-
+            assert len(parameters) == 2, f"{len(parameters)} does not match 2!"  # fc.weight, fc.bias
     else:
         raise NotImplementedError("Only part1 and part2... Should not be here at all.")
 
@@ -249,10 +280,11 @@ def main(args):
         criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
     if resume:
-        raise NotImplementedError  # Check this implementation.
-        # df = pd.read_csv(os.path.join(args.log_dir, "test.csv"))
-        # epoch_offset = df.loc[len(df) - 1, "epoch"] + 1
-        # logger.write(f"starting from epoch {epoch_offset}")
+        # raise NotImplementedError  # Check this implementation.
+        # # df = pd.read_csv(os.path.join(args.log_dir, "test.csv"))
+        # # epoch_offset = df.loc[len(df) - 1, "epoch"] + 1
+        # # logger.write(f"starting from epoch {epoch_offset}")
+        epoch_offset = args.resume_epoch + 1
     else:
         epoch_offset = 0
 
@@ -279,6 +311,29 @@ def main(args):
         wandb.finish()
 
 
+def make_data_split(train_data, part1_split_proportion, seed, ):
+    # then split it into part1 containing f*n examples of trainset and part2 containing the rest
+    if part1_split_proportion < 1:
+        part1, part2 = split_data(train_data.dataset, part1_proportion=part1_split_proportion, seed=seed)
+        part1_data = dro_dataset.DRODataset(
+            part1,
+            process_item_fn=None,
+            n_groups=train_data.n_groups,
+            n_classes=train_data.n_classes,
+            group_str_fn=train_data.group_str)
+        part2_data = dro_dataset.DRODataset(
+            part2,
+            process_item_fn=None,
+            n_groups=train_data.n_groups,
+            n_classes=train_data.n_classes,
+            group_str_fn=train_data.group_str)
+    elif part1_split_proportion == 1:  # this means we use the full dataset in both parts
+        part1_data, part2_data = train_data, train_data
+    else:
+        raise NotImplementedError
+    return part1_data, part2_data
+
+
 if __name__ == "__main__":
     """
         TODO: rename args so that it reflects 2 parts of the pipeline
@@ -301,6 +356,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--confounder_names", nargs="+")
     # Resume?
     parser.add_argument("--resume", default=False, action="store_true")
+    parser.add_argument("--resume_epoch", default=None, type=int)
     # Label shifts
     parser.add_argument("--minority_fraction", type=float)
     parser.add_argument("--imbalance_ratio", type=float)
@@ -357,6 +413,7 @@ if __name__ == "__main__":
                         required=True)
     # for use with part1
     parser.add_argument("--part1_split_proportion", type=float, default=0.5, help="Split proportion for part1")
+    parser.add_argument("--part1_use_all_data", action="store_true", default=False)
     # for use with part2
     parser.add_argument("--part1_model_epoch", type=int, help="Specify which epoch to load the initial model1 from")
     parser.add_argument("--part2_only_last_layer", action="store_true", default=False,
@@ -367,6 +424,9 @@ if __name__ == "__main__":
                         help="upweight factor for retraining. Set upweight=0 to get equal group sampling. Set to -1 for inverse group count sampling.")
     parser.add_argument("--use_real_group_labels", action="store_true", default=False,
                         help="Use real group labels to retrain part2")
+    parser.add_argument("--multi_subsample", action="store_true", default=False,
+                        help="We re-subsample every epoch instead of just subsampling once")
+
     args = parser.parse_args()
 
     assert 1 >= args.part1_split_proportion >= 0, "split proportion must be in [0,1]."

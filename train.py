@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 
-from utils import AverageMeter, accuracy, save_onnx_model
+from utils import AverageMeter, accuracy, save_onnx_model, get_subsampled_indices
 from loss import LossComputer
 
 from pytorch_transformers import AdamW, WarmupLinearSchedule
@@ -261,16 +261,25 @@ def train(
 
     best_val_acc = 0
     # main epoch loop
+    train_loader = dataset['train_loader']
+    old_idxs = train_loader.dataset.dataset.indices
+
     print(f"Training for {args.n_epochs-epoch_offset} epochs...")
     for epoch in range(epoch_offset, epoch_offset + args.n_epochs):
         logger.write("\nEpoch [%d]:\n" % epoch)
         logger.write(f"Training:\n")
+
+        if args.multi_subsample:  # if we are subsampling per epoch, we modify the train_loader
+            train_loader.dataset.dataset.indices = old_idxs  # initialize with old idxs
+            subsampled_idxs = get_subsampled_indices(dataset['train_data'])
+            train_loader.dataset.dataset.indices = subsampled_idxs
+
         # run train epoch
         run_epoch(
             epoch,
             model,
             optimizer,
-            dataset["train_loader"],
+            train_loader,
             train_loss_computer,
             logger,
             train_csv_logger,

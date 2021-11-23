@@ -19,10 +19,16 @@ from data.folds import Subset, ConcatDataset
 
 # wandb = None  # don't wanna use wandb.
 
-ROOT_LOG_DIR = "."
+ROOT_LOG_DIR = "/home/thiennguyen/research/pseudogroups/"
+WANDB_LOG_DIR = os.path.join(ROOT_LOG_DIR, "wandb")
+
+
 def main(args):
     if args.wandb:
-        wandb.init(project=f"{args.project_name}_{args.dataset}")
+        wandb.init(project=f"{args.project_name}_{args.dataset}",
+                    group=f"{os.path.basename(args.log_dir)}",
+                    name=f"s{args.seed}",
+                    dir=WANDB_LOG_DIR)
         wandb.config.update(args)
 
     # BERT-specific configs copied over from run_glue.py
@@ -328,7 +334,7 @@ if __name__ == "__main__":
 
     if args.log_dir == "AUTO":
         logroot = f"{ROOT_LOG_DIR}/{args.dataset}/autolog_{args.project_name}"
-        run_specific = f"{args.loss_type}_upweight{args.up_weight}_epochs{args.n_epochs}_lr{args.lr}_wd{args.weight_decay}"
+        run_specific = f"{args.loss_type}_epochs{args.n_epochs}_lr{args.lr}_wd{args.weight_decay}"
         args.log_dir =f"{logroot}/{run_specific}/"
 
     main(args)
