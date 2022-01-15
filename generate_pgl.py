@@ -41,6 +41,8 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
         criterion,
         loss_type=args.loss_type,
         dataset=part2_data,
+        alpha=args.alpha,
+        gamma=args.gamma,
         adj=adjustments,
         step_size=args.robust_step_size,
     )
@@ -68,23 +70,23 @@ def generate_pgl(part1_model_path, part2_data, train_data, args):
     n_groups = n_classes*2
     true_y = part2_df['y_true_pseudogroup_eval_epoch_0_val']
     pred_y = part2_df['y_pred_pseudogroup_eval_epoch_0_val']
-    true_g = part2_df['g_true_pseudogroup_eval_epoch_0_val']
+    # true_g = part2_df['g_true_pseudogroup_eval_epoch_0_val']
     misclassified = true_y != pred_y
-    sampler, upsampled_part2 = None, None
-    group_array = (misclassified + true_y * 2).astype("int")  # times 2 to make group (true_y, status)
+    # sampler, upsampled_part2 = None, None
+    group_array = (misclassified + true_y * n_classes).astype("int")  # times 2 to make group (true_y, status)
     part2_pgl_data = deepcopy(part2_data)
     part2_pgl_data.set_group_array(group_array, n_groups)
     # print(f"DEBUG: part2_pgl_data group count {part2_pgl_data.group_counts()} "
     #       f"vs. real group count {get_group_counts(group_array, n_groups)}")
     if args.upweight == 0:  # this means we do equal sampling
-        raise NotImplementedError
+        upsampled_part2 = None
         # group_weights = len(part2_data) / group_counts
         # weights = group_weights[group_array]
         # sampler = WeightedRandomSampler(weights, len(part2_data), replacement=True)
     else:  # this means we upweight
         assert args.upweight == -1 or args.upweight > 0
         aug_indices = part2_df['indices_pseudogroup_eval_epoch_0_val'][misclassified]
-        upweight_factor = len(part2_df) // len(aug_indices) if args.upweight != -1 else args.upweight
+        upweight_factor = len(part2_df) // len(aug_indices) if args.upweight == -1 else args.upweight
         print(f"UPWEIGHT FACTOR = {upweight_factor}")
         combined_indices = list(aug_indices) * upweight_factor + list(part2_df['indices_pseudogroup_eval_epoch_0_val'])
         upsampled_part2 = torch.utils.data.Subset(train_data.dataset.dataset, combined_indices)

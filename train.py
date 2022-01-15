@@ -42,7 +42,7 @@ def run_epoch(
     device = torch.device(f"cuda:{args.gpu}")
     if is_training:  # set model to train or eval
         model.train()
-        if (args.model.startswith("bert") and args.use_bert_params): # or (args.model == "bert"):
+        if (args.model.startswith("bert") and args.use_bert_params):  # or (args.model == "bert"):
             model.zero_grad()
     else:
         model.eval()
@@ -260,9 +260,12 @@ def train(
             scheduler = None
 
     best_val_acc = 0
+    best_val_wg_acc = 0
+    best_val_wg_epoch = 0
     # main epoch loop
     train_loader = dataset['train_loader']
-    old_idxs = train_loader.dataset.dataset.indices
+    if args.multi_subsample:
+        old_idxs = train_loader.dataset.dataset.indices
 
     print(f"Training for {args.n_epochs-epoch_offset} epochs...")
     for epoch in range(epoch_offset, epoch_offset + args.n_epochs):
@@ -368,7 +371,7 @@ def train(
             scheduler.step(
                 val_loss)  # scheduler step to update lr at the end of epoch
 
-        if epoch % args.save_step == 0:
+        if epoch < 5 or epoch % args.save_step == 0:
             torch.save(model, os.path.join(args.log_dir,
                                            "%d_model.pth" % epoch))
 
@@ -377,6 +380,16 @@ def train(
             x, _ = next(iter(dataset['train_loader']))
             torch.save(model, os.path.join(args.log_dir, "last_model.pth"))
             save_onnx_model(model, x, os.path.join(args.log_dir, "last_model.pth"))
+
+        curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
+        if curr_val_wg_acc > best_val_wg_acc:
+            best_val_wg_epoch = epoch
+            best_val_wg_acc = curr_val_wg_acc
+            logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc}")
+            if wandb is not None:
+                wandb.log({'val/best_wg_acc': best_val_wg_acc})
+            if args.save_best:
+                torch.save(model, os.path.join(args.log_dir, "best_wg_acc_model.pth"))
 
         if args.save_best:
             if args.loss_type == "group_dro" or args.reweight_groups:

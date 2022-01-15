@@ -2,17 +2,11 @@ import os
 import my_run_expt
 import tau_norm
 import argparse
+from utils import DotDict
 
 # todo: refactor so all args use a universal args
 BATCH_SIZE = 32
 PROJECT_NAME = "split_pgl"
-
-
-class DotDict(dict):
-    """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
 
 
 def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epochs,
@@ -20,7 +14,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
                       metadata_path, split_proportion, confounder_names, target_name,
                       metadata_csv_name, part,
                       data_root_dir="/home/thiennguyen/research/datasets/",
-                      batch_size=BATCH_SIZE, project_name=PROJECT_NAME, show_progress=False):
+                      batch_size=BATCH_SIZE, project_name=PROJECT_NAME, show_progress=False, log_every=151):
     return DotDict({
         "q": 0.7,
         "lr": lr,
@@ -40,7 +34,8 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "fraction": 1,
         "n_epochs": n_epochs,
         "root_dir": data_root_dir,
-        "log_every": 50,
+        "run_test": False,
+        "log_every": log_every,
         "loss_type": "erm",
         "save_best": False,
         "save_last": False,
@@ -56,12 +51,13 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "val_fraction": 0.1,
         "weight_decay": wd,
         "subsample_minority": False,
+        "multi_subsample": False,
         "metadata_path": metadata_path,
         "show_progress": show_progress,
         "imbalance_ratio": None,
         "joint_dro_alpha": 1,
         "reweight_groups": False,
-        "use_bert_params": 0,
+        "use_bert_params": 1,
         "confounder_names": confounder_names,
         "robust_step_size": 0.01,
         "metadata_csv_name": metadata_csv_name,
@@ -76,6 +72,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "part1_split_proportion": split_proportion,
         "part1_use_all_data": part1_use_all_data,
         "part1_model_epoch": 10,
+        "part1_pgl_model_epoch": None,
         "part2_only_last_layer": False,
         "part2_use_old_model": False,
         "upweight": 0
@@ -86,7 +83,8 @@ class TwoPartArgs:
     def __init__(self, dataset_name, model, lr, wd, gpu, seed, wandb, n_epochs,
                  part1_save_every, root_log, metadata_path, metadata_csv_path, split_proportion,
                  confounder_names, target_name, project_name, show_progress,
-                 data_root_dir="/home/thiennguyen/research/datasets/", part1_use_all_data=False):
+                 data_root_dir="/home/thiennguyen/research/datasets/", part1_use_all_data=False,
+                 log_every=151):
         self.part1_args = get_standard_args(
             part=1,
             dataset=dataset_name,
@@ -102,7 +100,8 @@ class TwoPartArgs:
             confounder_names=confounder_names,
             target_name=target_name,
             project_name=project_name,
-            show_progress=show_progress)
+            show_progress=show_progress,
+            log_every=log_every)
 
         self.part2_args = get_standard_args(
             part=2,
@@ -119,7 +118,36 @@ class TwoPartArgs:
             confounder_names=confounder_names,
             target_name=target_name,
             project_name=project_name,
-            show_progress=show_progress)
+            show_progress=show_progress,
+            log_every=log_every)
+
+
+# python run_expt.py -s confounder -d jigsaw -t toxicity -c identity_any --batch_size 16 --root_dir ./jigsaw --n_epochs 3
+# --aug_col None --log_dir results/jigsaw/jigsaw_sample_exp/ERM_upweight_0_epochs_3_lr_1e-05_weight_decay_0.01/model_outputs
+# --metadata_path results/jigsaw/jigsaw_sample_exp/metadata_aug.csv --lr 1e-05 --weight_decay 0.01 --up_weight 0
+# --metadata_csv_name all_data_with_identities.csv --model bert-base-uncased --use_bert_params 0 --wandb --loss_type erm
+class MyCivilCommentsArgs(TwoPartArgs):
+    def __init__(self, n_epochs=6, wd=1e-2, lr=1e-5, part1_use_all_data=False,
+                 upweight=0, run_name='civilComments_run', project_name='splitpgl',
+                 only_last_layer=True, seed=0, wandb=True, show_progress=True,
+                 split_proportion=0.5, gpu=0, part1_save_every=10):
+        self.upweight = upweight
+        self.only_last_layer = only_last_layer
+        self.root_log = f"/home/thiennguyen/research/pseudogroups/CivilComments/splitpgl_sweep_logs"
+        self.ROOT_LOG = os.path.join(self.root_log,
+                                     f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
+        confounder_names = ["identity_any"]
+        dataset_name = "jigsaw"
+        target_name = "toxicity"
+        metadata_csv_path = "all_data_with_identities.csv"
+        model = "bert-base-uncased"
+        metadata_path = None
+
+        super().__init__(dataset_name, model, lr, wd, gpu, seed, wandb,
+                         n_epochs, part1_save_every, self.ROOT_LOG,
+                         metadata_path, metadata_csv_path, split_proportion,
+                         confounder_names, target_name,
+                         project_name, show_progress, part1_use_all_data=part1_use_all_data, data_root_dir='/home/thiennguyen/research/datasets/jigsaw')
 
 
 class MyMultinliArgs(TwoPartArgs):
@@ -150,7 +178,7 @@ class MyCelebaArgs(TwoPartArgs):
     def __init__(self, n_epochs=51, wd=1e-5, lr=1e-5, part1_use_all_data=False,
                  upweight=0, run_name='celebA_run', project_name='noname',
                  only_last_layer=True, seed=0, wandb=True, show_progress=True,
-                 split_proportion=0.5, gpu=0, part1_save_every=10):
+                 split_proportion=0.5, gpu=0, part1_save_every=10, log_every=601):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
         self.root_log = f"/home/thiennguyen/research/pseudogroups/CelebA/splitpgl_sweep_logs"
@@ -167,7 +195,8 @@ class MyCelebaArgs(TwoPartArgs):
                          n_epochs, part1_save_every, self.ROOT_LOG,
                          metadata_path, metadata_csv_path, split_proportion,
                          confounder_names, target_name,
-                         project_name, show_progress, part1_use_all_data=part1_use_all_data)
+                         project_name, show_progress, part1_use_all_data=part1_use_all_data,
+                         log_every=log_every)
 
 
 class MyCUBArgs(TwoPartArgs):
@@ -210,46 +239,59 @@ class MyCUBArgs(TwoPartArgs):
                                                       f"{'retrain' if self.only_last_layer else 'last_layer'}_part2_upweight{self.upweight}")
 
 
-def set_args_and_run_sweep(mainargs: TwoPartArgs, args,
-                           part1_LR, part1_WD,
-                           n_epochs_p1, n_epochs_p2,
-                           part2_LR, part2_WD,
-                           PART2_ONLY_LAST_LAYER, USE_REAL_GROUP_LABELS,
-                           PART2_REWEIGHT, MIN_TAU, MAX_TAU, TAU_STEP,
-                           DEFAULT_PART1_MODEL_EPOCHS, RUN_PART1,
-                           RUN_PART2, RUN_TAU_NORM, SEED, PART2_USE_OLD_MODEL=True):
+# TAU_NORM_ARGS
+RUN_TAU_NORM = False
+MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
+
+
+def set_args_and_run_sweep(mainargs: TwoPartArgs, args, PART2_USE_OLD_MODEL=True):
     main_part1_args = mainargs.part1_args
     main_part2_args = mainargs.part2_args
 
     # part1 args
     main_part1_args.loss_type = args.part1_loss_type
-    main_part1_args.lr, main_part1_args.weight_decay = part1_LR, part1_WD
-    main_part1_args.n_epochs, main_part2_args.n_epochs = n_epochs_p1, n_epochs_p2
+    main_part1_args.lr, main_part1_args.weight_decay = args.part1_lr, args.part1_wd
+    main_part1_args.n_epochs, main_part2_args.n_epochs = args.part1_n_epochs, args.part2_n_epochs
     main_part1_args.reweight_groups = args.part1_reweight
-    if args.part1_resume_from >= 0:
+    main_part1_args.save_best = args.part1_save_best
+    main_part1_args.run_test = args.run_test
+
+    part1_log_lr = args.part1_lr  # this is to help with resuming the correct model
+    if args.part1_resume_epoch >= 0:
         main_part1_args.resume = True
-        main_part1_args.resume_epoch = args.part1_resume_from
+        main_part1_args.resume_epoch = args.part1_resume_epoch
+        if args.part1_resume_lr is not None:
+            part1_log_lr = args.part1_resume_lr
+
     # part 2 args
-    main_part2_args.lr, main_part2_args.weight_decay = part2_LR, part2_WD
-    main_part2_args.part2_only_last_layer = PART2_ONLY_LAST_LAYER
-    main_part2_args.use_real_group_labels = USE_REAL_GROUP_LABELS
+    main_part2_args.lr, main_part2_args.weight_decay = args.part2_lr, args.part2_wd
+    main_part2_args.part2_only_last_layer = not args.part2_train_full
+    main_part2_args.use_real_group_labels = not args.part2_use_pgl
+    main_part2_args.part1_pgl_model_epoch = args.part1_pgl_model_epoch
     main_part2_args.loss_type = args.part2_loss_type
-    main_part2_args.reweight_groups = PART2_REWEIGHT
+    main_part2_args.reweight_groups = args.part2_reweight
     main_part2_args.subsample_minority = args.part2_subsample
     main_part2_args.part2_use_old_model = PART2_USE_OLD_MODEL
-    if args.part2_resume_from >= 0:
+    main_part2_args.multi_subsample = args.part2_multi_subsample
+    main_part2_args.run_test = args.run_test
+    RUN_PART2 = not args.no_part2
+
+    part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
+    if args.part2_resume_epoch >= 0:
         main_part2_args.resume = True
-        main_part2_args.resume_epoch = args.part2_resume_from
+        main_part2_args.resume_epoch = args.part2_resume_epoch
+        if args.part2_resume_lr is not None:
+            part2_log_lr = args.part2_resume_lr
 
     # some log dir for part 1
     extra_part1 = f"{'_rw' if main_part1_args.reweight_groups else ''}" \
                   f"{main_part1_args.loss_type if main_part1_args.loss_type != 'erm' else ''}"
 
     # some log dir for part 2
-    oll_part2 = "oll" if PART2_ONLY_LAST_LAYER else "full"
+    oll_part2 = "oll" if not args.part2_train_full else "full"
     extra_part2 = f"{'rw' if main_part2_args.reweight_groups else ''}" \
                   f"{'_subsample' if main_part2_args.subsample_minority else ''}" \
-                  f"{'_rgl' if main_part2_args.use_real_group_labels else '_pgl'}"
+                  f"{'_rgl' if main_part2_args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}"
 
     # tau norm args
     tau_norm_args = DotDict(main_part2_args.copy())
@@ -258,7 +300,7 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args,
     tau_norm_args['run_test'] = True
 
     if args.part1_model_epochs is None:
-        p1me = DEFAULT_PART1_MODEL_EPOCHS
+        p1me = [args.part1_n_epochs - 1]
     else:
         p1me = args.part1_model_epochs
 
@@ -267,19 +309,16 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args,
     for p in args.p:
         # prep part 1
         main_part1_args.part1_split_proportion = p
-        if args.part1_use_all_data:
-            stem = f"all{extra_part1}_wd{part1_WD}_lr{part1_LR}_s{SEED}"
-        else:
-            stem = f"p{p}{extra_part1}_wd{part1_WD}_lr{part1_LR}_s{SEED}"
+        stem = f"{'all' if args.part1_use_all_data else f'p{p}'}{extra_part1}_wd{args.part1_wd}_lr{part1_log_lr}"
         root_log = os.path.join(mainargs.root_log, stem)
-        main_part1_args.log_dir = os.path.join(root_log, f"part1")
+        main_part1_args.log_dir = os.path.join(root_log, f"part1_s{args.seed}")
         # run part1
-        if RUN_PART1:  # ensure we have already run part 1 if this is set to False
+        if args.run_part1:  # ensure we have already run part 1 if this is set to False
             my_run_expt.main(main_part1_args)
             if args.part1_use_all_data:
                 print(f"******** [PART1_USE_ALL_DATA] SKIPPING TRAINING PART1 FOR p={p} SINCE ALREADY TRAINED ON ALL "
                       f"DATA *******")
-                RUN_PART1 = False  # since we will be training the same model again
+                args.run_part1 = False  # since we will be training the same model again
 
         # prep part 2
         main_part2_args.part1_split_proportion = p
@@ -289,7 +328,9 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args,
             main_part2_args.part1_model_epoch = part1_model_epoch
             print(f"Running p={p} and p1me={part1_model_epoch}")
             main_part2_args.log_dir = os.path.join(root_log, f"part2_{oll_part2}{part1_model_epoch}{extra_part2}_"
-                                                             f"{args.part2_loss_type}_p{p}_wd{part2_WD}_lr{part2_LR}")
+                                                             f"{args.part2_loss_type}_p{p}_wd{args.part2_wd}"
+                                                             f"_lr{part2_log_lr}"
+                                                             f"_s{args.seed}")
             tau_norm_args.log_dir = os.path.join(main_part2_args.log_dir, "tau_norm")
             if RUN_PART2:
                 my_run_expt.main(main_part2_args)
@@ -305,7 +346,8 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("-p", nargs="+", type=float, default=p)
     parser.add_argument("--no_wandb", action="store_true", default=False)
     parser.add_argument("--gpu", type=int, default=gpu)
-
+    parser.add_argument("--show_progress", action="store_true", default=False)
+    parser.add_argument("--run_test", action="store_true", default=False)
     # part1 args
     parser.add_argument("--part1_wd", type=float, default=part1_wd)
     parser.add_argument("--part1_lr", type=float, default=part1_lr)
@@ -314,11 +356,18 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--part1_reweight", action="store_true", default=False)
     parser.add_argument("--run_part1", action="store_true", default=False)
     parser.add_argument("--part1_save_every", type=int, default=10)
+    parser.add_argument("--part1_save_best", action="store_true", default=False)
     parser.add_argument("--part1_n_epochs", type=int, default=part1_n_epochs)
     parser.add_argument("--part1_use_all_data", action="store_true", default=False)
-    parser.add_argument("--part1_resume_from", type=int, default=-1)
+    parser.add_argument("--part1_resume_epoch", type=int, default=-1)
+    parser.add_argument("--part1_resume_lr", type=float, default=None,
+                        help="Resume lr is used when we want to resume the run from a particular epoch "
+                             "but with a different lr")
+
     # part2 args
     parser.add_argument("--part1_model_epochs", nargs="+", type=int, default=None)
+    parser.add_argument("--part2_use_pgl", action="store_true", default=False)
+    parser.add_argument("--part1_pgl_model_epoch", type=int, default=None)
     parser.add_argument("--part2_loss_type", default="erm",
                         choices=["erm", "group_dro", "joint_dro"])
     parser.add_argument("--part2_subsample", action="store_true", default=False)
@@ -327,10 +376,16 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--part2_wd", type=float, default=part2_wd)
     parser.add_argument("--part2_n_epochs", type=int, default=part2_n_epochs)
     parser.add_argument("--no_part2", action="store_true", default=False)
-    parser.add_argument("--part2_resume_from", type=int, default=-1)
-
+    parser.add_argument("--part2_resume_epoch", type=int, default=-1,
+                        help="Which epoch are we resuming from")
+    parser.add_argument("--part2_resume_lr", type=float, default=None,
+                        help="Resume lr is used when we want to resume the run from a particular epoch "
+                             "but with a different lr")
+    parser.add_argument("--part2_multi_subsample", action="store_true", default=False)
     parser.add_argument("--tau_norm_after_part2", action="store_true", default=False)
-
+    parser.add_argument("--part2_train_full", action="store_true", default=False,
+                        help="By default we are only retraining the last layer for part2. "
+                             "Set this if want to retrain all.")
     args = parser.parse_args()
     return args
 

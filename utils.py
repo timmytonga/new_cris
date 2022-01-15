@@ -3,7 +3,6 @@ import os
 import torch
 import numpy as np
 import csv
-import wandb
 
 import torch
 import torch.nn as nn
@@ -12,6 +11,13 @@ from models import model_attributes
 from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
 import data
+
+
+class DotDict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 
 class Logger(object):
@@ -157,7 +163,11 @@ def set_seed(seed):
 
 
 def log_args(args, logger):
-    for argname, argval in vars(args).items():
+    if type(args) is DotDict:
+        argdict = args.items()
+    else:
+        argdict = vars(args).items()
+    for argname, argval in argdict:
         logger.write(f'{argname.replace("_"," ").capitalize()}: {argval}\n')
     logger.write("\n")
 

@@ -253,6 +253,7 @@ if __name__ == "__main__":
     parser.add_argument("--reweight_groups", action="store_true",
                         default=False,
                         help="set to True if loss_type is group DRO")
+    parser.add_argument("--multi_subsample", action="store_true", default=False)
     parser.add_argument("--augment_data", action="store_true", default=False)
     parser.add_argument("--val_fraction", type=float, default=0.1)
 
