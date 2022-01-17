@@ -4,16 +4,16 @@ import tau_norm
 import argparse
 from utils import DotDict
 
-# todo: refactor so all args use a universal args
-BATCH_SIZE = 32
+BATCH_SIZE = 32  # default is 32
 PROJECT_NAME = "split_pgl"
+ROOT_DIR_PATH = "/home/thien/research"
 
 
 def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epochs,
                       part1_save_every, part1_use_all_data,
                       metadata_path, split_proportion, confounder_names, target_name,
                       metadata_csv_name, part,
-                      data_root_dir="/home/thiennguyen/research/datasets/",
+                      data_root_dir=f"{ROOT_DIR_PATH}/datasets/",
                       batch_size=BATCH_SIZE, project_name=PROJECT_NAME, show_progress=False, log_every=151):
     return DotDict({
         "q": 0.7,
@@ -83,7 +83,7 @@ class TwoPartArgs:
     def __init__(self, dataset_name, model, lr, wd, gpu, seed, wandb, n_epochs,
                  part1_save_every, root_log, metadata_path, metadata_csv_path, split_proportion,
                  confounder_names, target_name, project_name, show_progress,
-                 data_root_dir="/home/thiennguyen/research/datasets/", part1_use_all_data=False,
+                 data_root_dir=f"{ROOT_DIR_PATH}/datasets/", part1_use_all_data=False,
                  log_every=151):
         self.part1_args = get_standard_args(
             part=1,
@@ -133,7 +133,7 @@ class MyCivilCommentsArgs(TwoPartArgs):
                  split_proportion=0.5, gpu=0, part1_save_every=10):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
-        self.root_log = f"/home/thiennguyen/research/pseudogroups/CivilComments/splitpgl_sweep_logs"
+        self.root_log = f"{ROOT_DIR_PATH}/pseudogroups/CivilComments/splitpgl_sweep_logs"
         self.ROOT_LOG = os.path.join(self.root_log,
                                      f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
         confounder_names = ["identity_any"]
@@ -147,7 +147,8 @@ class MyCivilCommentsArgs(TwoPartArgs):
                          n_epochs, part1_save_every, self.ROOT_LOG,
                          metadata_path, metadata_csv_path, split_proportion,
                          confounder_names, target_name,
-                         project_name, show_progress, part1_use_all_data=part1_use_all_data, data_root_dir='/home/thiennguyen/research/datasets/jigsaw')
+                         project_name, show_progress, part1_use_all_data=part1_use_all_data,
+                         data_root_dir=f'{ROOT_DIR_PATH}/datasets/jigsaw')
 
 
 class MyMultinliArgs(TwoPartArgs):
@@ -157,7 +158,7 @@ class MyMultinliArgs(TwoPartArgs):
                  split_proportion=0.5, gpu=0, part1_save_every=10):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
-        self.root_log = f"/home/thiennguyen/research/pseudogroups/MultiNLI/splitpgl_sweep_logs"
+        self.root_log = f"{ROOT_DIR_PATH}/pseudogroups/MultiNLI/splitpgl_sweep_logs"
         self.ROOT_LOG = os.path.join(self.root_log,
                                      f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
         confounder_names = ["sentence2_has_negation"]
@@ -181,7 +182,7 @@ class MyCelebaArgs(TwoPartArgs):
                  split_proportion=0.5, gpu=0, part1_save_every=10, log_every=601):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
-        self.root_log = f"/home/thiennguyen/research/pseudogroups/CelebA/splitpgl_sweep_logs"
+        self.root_log = f"{ROOT_DIR_PATH}/pseudogroups/CelebA/splitpgl_sweep_logs"
         self.ROOT_LOG = os.path.join(self.root_log,
                                      f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
         confounder_names = ["Male"]
@@ -206,7 +207,7 @@ class MyCUBArgs(TwoPartArgs):
                  split_proportion=0.5, gpu=0, part1_save_every=10):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
-        self.root_log = f"/home/thiennguyen/research/pseudogroups/CUB/splitpgl_sweep_logs"
+        self.root_log = f"{ROOT_DIR_PATH}/pseudogroups/CUB/splitpgl_sweep_logs"
         self.ROOT_LOG = os.path.join(self.root_log,
                                      f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
         dataset_name = "CUB"
@@ -215,7 +216,7 @@ class MyCUBArgs(TwoPartArgs):
         confounder_names = ["forest2water2"]
         metadata_csv_path = "metadata.csv"
         metadata_path = f"myresults/CUB/{run_name}/metadata_aug.csv"
-        data_root_dir = "/home/thiennguyen/research/datasets/cub"
+        data_root_dir = f"{ROOT_DIR_PATH}/datasets/cub"
 
         super().__init__(dataset_name, model, lr, wd, gpu, seed, wandb,
                          n_epochs, part1_save_every, self.ROOT_LOG,
@@ -365,7 +366,8 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                              "but with a different lr")
 
     # part2 args
-    parser.add_argument("--part1_model_epochs", nargs="+", type=int, default=None)
+    parser.add_argument("--part1_model_epochs", nargs="+", type=int, default=None,
+                        help="Which model epoch to retrain part2 on. Use -1 to ")
     parser.add_argument("--part2_use_pgl", action="store_true", default=False)
     parser.add_argument("--part1_pgl_model_epoch", type=int, default=None)
     parser.add_argument("--part2_loss_type", default="erm",

@@ -5,10 +5,10 @@ args = set_two_parts_args(seed=0,
                           gpu=0,
                           part1_wd=1e-4,
                           part1_lr=1e-4,
-                          part1_n_epochs=301,
+                          part1_n_epochs=251,
                           part2_lr=1e-4,
                           part2_wd=1e-4,
-                          part2_n_epochs=301)
+                          part2_n_epochs=251)
 
 ######### SET ARGS HERE ########
 # misc args

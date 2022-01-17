@@ -19,7 +19,7 @@ from data.folds import Subset, ConcatDataset
 
 # wandb = None  # don't wanna use wandb.
 
-ROOT_LOG_DIR = "/home/thiennguyen/research/pseudogroups/"
+ROOT_LOG_DIR = "/home/thien/research/pseudogroups/"
 WANDB_LOG_DIR = os.path.join(ROOT_LOG_DIR, "wandb")
 
 

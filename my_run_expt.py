@@ -18,8 +18,11 @@ from train import train, run_epoch
 from generate_pgl import generate_pgl
 from data.folds import Subset
 
-ROOT_LOG_DIR = "/home/thiennguyen/research/pseudogroups/"
+ROOT_LOG_DIR = "/home/thien/research/pseudogroups/"
 WANDB_LOG_DIR = os.path.join(ROOT_LOG_DIR, "wandb")
+
+BEST_MODEL_EPOCH = -1  # this is to indicate that we are using the best val_avg_acc from part1 to train part2
+NUM_WORKERS = 4
 
 
 def main(args):
@@ -88,8 +91,8 @@ def main(args):
 
     # Some data prep for parts below
     loader_kwargs = {  # setting for args
-        "batch_size": args.batch_size,
-        "num_workers": 4,
+        "batch_size": args.batch_size,  # can adjust the batchsize of sweep in example_args
+        "num_workers": NUM_WORKERS,
         "pin_memory": True,
     }
     data = {}  # this will get set accordingly whether we use part1 or part2
@@ -156,7 +159,12 @@ def main(args):
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
                 torch.save(part1and2_data, data_path)
 
-        part1_model_path = os.path.join(part1_dir, f"{args.part1_model_epoch}_model.pth")
+        # get the correct part1 model
+        if args.part1_model_epoch == BEST_MODEL_EPOCH:
+            part1_model_path = os.path.join(part1_dir, f"best_model.pth")
+            logger.write("Using best val_avg_acc model from part 1. \n")
+        else:
+            part1_model_path = os.path.join(part1_dir, f"{args.part1_model_epoch}_model.pth")
         # this should be a Subset that contains the right upweight for the right points
         if args.use_real_group_labels:  # this is simply for baseline
             logger.write(

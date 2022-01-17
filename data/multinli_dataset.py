@@ -29,7 +29,7 @@ class MultiNLIDataset(ConfounderDataset):
         model_type=None,
         metadata_csv_name="metadata_random.csv",
     ):
-        self.root_dir = '/home/thiennguyen/research/datasets/' 
+        self.root_dir = '/home/thien/research/datasets/'
         
         self.target_name = target_name
         self.confounder_names = confounder_names
