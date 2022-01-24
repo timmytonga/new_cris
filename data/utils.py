@@ -2,6 +2,8 @@ import torch
 import numpy as np
 from data.folds import Subset
 
+ROOT_DIR_PATH = "/home/thien/research"
+
 
 # Train val split
 def train_val_split(dataset, val_frac):

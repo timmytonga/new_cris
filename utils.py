@@ -11,8 +11,9 @@ from models import model_attributes
 from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
 import data
+from data.utils import ROOT_DIR_PATH
 
-ROOT_DIR_PATH = "/home/thien/research"
+# ROOT_DIR_PATH = "/home/thien/research"
 
 
 class DotDict(dict):

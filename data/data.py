@@ -4,7 +4,7 @@ import numpy as np
 from torch.utils.data import Subset
 from data.label_shift_utils import prepare_label_shift_data
 from data.confounder_utils import prepare_confounder_data
-from ..utils import ROOT_DIR_PATH
+from utils import ROOT_DIR_PATH
 
 
 root_dir = os.path.join(ROOT_DIR_PATH, "datasets")

@@ -7,6 +7,9 @@ import torchvision.transforms as transforms
 from models import model_attributes
 from torch.utils.data import Dataset, Subset
 from data.confounder_dataset import ConfounderDataset
+from utils import ROOT_DIR_PATH
+
+root_dir = os.path.join(ROOT_DIR_PATH, 'datasets')
 
 
 class MultiNLIDataset(ConfounderDataset):
@@ -29,7 +32,7 @@ class MultiNLIDataset(ConfounderDataset):
         model_type=None,
         metadata_csv_name="metadata_random.csv",
     ):
-        self.root_dir = '/home/thien/research/datasets/'
+        self.root_dir = root_dir
         
         self.target_name = target_name
         self.confounder_names = confounder_names
