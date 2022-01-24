@@ -12,6 +12,8 @@ from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
 import data
 
+ROOT_DIR_PATH = "/home/thien/research"
+
 
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""

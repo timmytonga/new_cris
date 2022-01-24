@@ -2,11 +2,11 @@ import os
 import my_run_expt
 import tau_norm
 import argparse
-from utils import DotDict
+from utils import DotDict, ROOT_DIR_PATH
 
 BATCH_SIZE = 32  # default is 32
 PROJECT_NAME = "split_pgl"
-ROOT_DIR_PATH = "/home/thien/research"
+# ROOT_DIR_PATH = "/home/thien/research"
 
 
 def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epochs,

@@ -14,12 +14,13 @@ from models import model_attributes
 from data.data import dataset_attributes, shift_types, prepare_data, log_data, log_single_data
 from data import dro_dataset
 from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args, get_subsampled_indices
+from utils import ROOT_DIR_PATH
 from train import train, run_epoch
 from generate_pgl import generate_pgl
 from data.folds import Subset
 
-ROOT_LOG_DIR = "/home/thien/research/pseudogroups/"
-WANDB_LOG_DIR = os.path.join(ROOT_LOG_DIR, "wandb")
+ROOT_LOG_DIR = os.path.join(ROOT_DIR_PATH, 'logs')  # "/home/thien/research/pseudogroups/"
+WANDB_LOG_DIR = ROOT_LOG_DIR  # os.path.join(ROOT_LOG_DIR, "wandb")
 
 BEST_MODEL_EPOCH = -1  # this is to indicate that we are using the best val_avg_acc from part1 to train part2
 NUM_WORKERS = 4
