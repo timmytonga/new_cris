@@ -74,37 +74,6 @@ def run_epoch(
                 # outputs.shape: (batch_size, num_classes)
                 outputs = model(x)
 
-            output_df = pd.DataFrame()  # dataframe to save to output_{train/val/test}_epoch
-
-            # Calculate stats -- get the prediction and compare with groundtruth -- save to output df
-            if batch_idx == 0:
-                acc_y_pred = np.argmax(outputs.detach().cpu().numpy(), axis=1)
-                acc_y_true = y.cpu().numpy()
-                acc_g_true = g.cpu().numpy()
-                indices = data_idx.cpu().numpy()
-                
-                probs = outputs.detach().cpu().numpy()
-            else:  # concatenate
-                acc_y_pred = np.concatenate([
-                    acc_y_pred,
-                    np.argmax(outputs.detach().cpu().numpy(), axis=1)
-                ])
-                acc_y_true = np.concatenate([acc_y_true, y.cpu().numpy()])
-                acc_g_true = np.concatenate([acc_g_true, g.cpu().numpy()])
-                indices = np.concatenate([indices, data_idx.cpu().numpy()])
-                probs = np.concatenate([probs, outputs.detach().cpu().numpy()], axis = 0)
-                
-            assert probs.shape[0] == indices.shape[0]
-            # TODO: make this cleaner. Probably by avoid duplicate and concatenation somehow
-            run_name = f"{csv_name}_epoch_{epoch}_val"
-            output_df[f"y_pred_{run_name}"] = acc_y_pred
-            output_df[f"y_true_{run_name}"] = acc_y_true
-            output_df[f"indices_{run_name}"] = indices
-            output_df[f"g_true_{run_name}"] = acc_g_true
-            
-            for class_ind in range(probs.shape[1]):
-                output_df[f"pred_prob_{run_name}_{class_ind}"] = probs[:, class_ind]
-
             # running loss_computer computes other stats like group accuracy and such
             loss_main = loss_computer.loss(outputs, y, g, is_training)
             # update model
@@ -121,6 +90,36 @@ def run_epoch(
                     loss_main.backward()
                     optimizer.step()
 
+            output_df = pd.DataFrame()  # dataframe to save to output_{train/val/test}_epoch
+
+            # Calculate stats -- get the prediction and compare with groundtruth -- save to output df
+            if batch_idx == 0:
+                acc_y_pred = np.argmax(outputs.detach().cpu().numpy(), axis=1)
+                acc_y_true = y.detach().cpu().numpy()
+                acc_g_true = g.detach().cpu().numpy()
+                indices = data_idx.detach().cpu().numpy()
+
+                probs = outputs.detach().cpu().numpy()
+            else:  # concatenate
+                acc_y_pred = np.concatenate([
+                    acc_y_pred,
+                    np.argmax(outputs.detach().cpu().numpy(), axis=1)
+                ])
+                acc_y_true = np.concatenate([acc_y_true, y.detach().cpu().numpy()])
+                acc_g_true = np.concatenate([acc_g_true, g.detach().cpu().numpy()])
+                indices = np.concatenate([indices, data_idx.detach().cpu().numpy()])
+                probs = np.concatenate([probs, outputs.detach().cpu().numpy()], axis=0)
+
+            assert probs.shape[0] == indices.shape[0]
+            # TODO: make this cleaner. Probably by avoid duplicate and concatenation somehow
+            run_name = f"{csv_name}_epoch_{epoch}_val"
+            output_df[f"y_pred_{run_name}"] = acc_y_pred
+            output_df[f"y_true_{run_name}"] = acc_y_true
+            output_df[f"indices_{run_name}"] = indices
+            output_df[f"g_true_{run_name}"] = acc_g_true
+
+            for class_ind in range(probs.shape[1]):
+                output_df[f"pred_prob_{run_name}_{class_ind}"] = probs[:, class_ind]
             # update csv logs and wandb
             if is_training and (batch_idx + 1) % log_every == 0:
                 # this csv logger generates the train/val/test.csv that contains aggregate info per epoch

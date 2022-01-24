@@ -61,35 +61,36 @@ class LossComputer:
 
     def loss(self, yhat, y, group_idx=None, is_training=False):
         # compute per-sample and per-group losses
-        per_sample_losses = self.criterion(yhat, y)
-        group_loss, group_count = self.compute_group_avg(
-            per_sample_losses, group_idx)
-        group_acc, group_count = self.compute_group_avg(
-            (torch.argmax(yhat, 1) == y).float(), group_idx)
+        with torch.set_grad_enabled(is_training):
+            per_sample_losses = self.criterion(yhat, y)
+            group_loss, group_count = self.compute_group_avg(
+                per_sample_losses, group_idx)
+            group_acc, group_count = self.compute_group_avg(
+                (torch.argmax(yhat, 1) == y).float(), group_idx)
 
-        # update historical losses
-        self.update_exp_avg_loss(group_loss, group_count)
+            # update historical losses
+            self.update_exp_avg_loss(group_loss, group_count)
 
-        # compute overall loss
-        if self.loss_type == "group_dro":
-            if not self.btl:
-                actual_loss, weights = self.compute_robust_loss(
-                    group_loss, group_count)
+            # compute overall loss
+            if self.loss_type == "group_dro":
+                if not self.btl:
+                    actual_loss, weights = self.compute_robust_loss(
+                        group_loss, group_count)
+                else:
+                    actual_loss, weights = self.compute_robust_loss_btl(
+                        group_loss, group_count)
+            elif self.loss_type == "joint_dro":
+                actual_loss = self._joint_dro_loss_computer(per_sample_losses)
+                weights = None
             else:
-                actual_loss, weights = self.compute_robust_loss_btl(
-                    group_loss, group_count)
-        elif self.loss_type == "joint_dro":
-            actual_loss = self._joint_dro_loss_computer(per_sample_losses)
-            weights = None
-        else:
-            assert self.loss_type == "erm"
+                assert self.loss_type == "erm"
 
-            actual_loss = per_sample_losses.mean()
-            weights = None
+                actual_loss = per_sample_losses.mean()
+                weights = None
 
-        # update stats
-        self.update_stats(actual_loss, group_loss, group_acc, group_count,
-                          weights)
+            # update stats
+            self.update_stats(actual_loss, group_loss, group_acc, group_count,
+                              weights)
 
         return actual_loss
 
