@@ -336,7 +336,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
             tau_norm_args.part1_split_proportion = p
 
         # make some log dirs
-        pname = pname_stem + p
+        pname = pname_stem + str(p)
         stem = f"{'all' if (args.part1_use_all_data or args.val_split) else pname}{extra_part1}" \
                f"_wd{args.part1_wd}_lr{part1_log_lr}"
         root_log = os.path.join(mainargs.root_log, stem)
