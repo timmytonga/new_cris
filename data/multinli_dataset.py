@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 from models import model_attributes
 from torch.utils.data import Dataset, Subset
 from data.confounder_dataset import ConfounderDataset
-from utils import ROOT_DIR_PATH
+from data.utils import ROOT_DIR_PATH
 
 root_dir = os.path.join(ROOT_DIR_PATH, 'datasets')
 

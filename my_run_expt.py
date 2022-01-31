@@ -47,13 +47,15 @@ def main(args):
             job_type = f"part2{'_oll' if args.part2_only_last_layer else ''}" \
                        f"p{args.part1_split_proportion}" \
                        f"_{'rgl' if args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}" \
-                       f"{'_rw' if args.reweight_groups else ''}"
+                       f"{'_rw' if args.reweight_groups else ''}"\
+                       f"{'_ga' if args.generalization_adjustment != '0.0' else ''}"
             if args.subsample_minority:
                 job_type += '_ss'
             if args.multi_subsample:
                 job_type += '_mss'
             job_type += f"_{args.loss_type}_wd{args.weight_decay}lr{args.lr}"
             run_name = f"e{args.part1_model_epoch}_seed{args.seed}"
+            run_name += f'_ga{args.generalization_adjustment}' if args.generalization_adjustment != '0.0' else ''
             tags = ['part2', args.loss_type]
         else:
             raise NotImplementedError
@@ -425,6 +427,10 @@ if __name__ == "__main__":
     ###################
     parser.add_argument("--part", choices=[1, 2], type=int, help="Specify whether we are training part1 or part2",
                         required=True)
+    # new!
+    parser.add_argument("--val_split_proportion", type=float, default=0.5,
+                        help="Split validation set so that one part is used as new val while the other as part2."
+                             "Don't set this with part1_split_proportion...")
     # for use with part1
     parser.add_argument("--part1_split_proportion", type=float, default=0.5, help="Split proportion for part1")
     parser.add_argument("--part1_use_all_data", action="store_true", default=False)
@@ -464,6 +470,7 @@ if __name__ == "__main__":
     if args.log_dir == "AUTO":
         logroot = f"{ROOT_LOG_DIR}/{args.dataset}/autolog_{args.project_name}"
         run_specific = f"{args.loss_type}_upweight{args.upweight}_epochs{args.n_epochs}_lr{args.lr}_wd{args.weight_decay}"
+        run_specific += f'_ga{args.generalization_adjustment}' if args.generalization_adjustment != '0.0' else ''
         args.log_dir = f"{logroot}/{run_specific}/part{args.part}"
 
     main(args)

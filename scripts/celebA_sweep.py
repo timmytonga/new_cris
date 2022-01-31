@@ -9,7 +9,7 @@ args = set_two_parts_args(seed=0,
                           part1_n_epochs=21,
                           part2_lr=1e-4,
                           part2_wd=1e-4,
-                          part2_n_epochs=51)
+                          part2_n_epochs=31)
 
 
 ######### SET ARGS HERE ########

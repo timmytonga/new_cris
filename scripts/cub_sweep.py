@@ -12,7 +12,7 @@ args = set_two_parts_args(seed=0,
 
 ######### SET ARGS HERE ########
 # misc args
-project_name = "Rgl" if not args.part2_use_pgl else "Pgl"
+project_name = "Rgl2" if not args.part2_use_pgl else "Pgl"
 ################################
 
 # initialize args

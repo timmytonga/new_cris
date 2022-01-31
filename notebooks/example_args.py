@@ -275,6 +275,7 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args, PART2_USE_OLD_MODEL=True
     main_part2_args.part2_use_old_model = PART2_USE_OLD_MODEL
     main_part2_args.multi_subsample = args.part2_multi_subsample
     main_part2_args.run_test = args.run_test
+    main_part2_args.generalization_adjustment = args.part2_group_adjustment
     RUN_PART2 = not args.no_part2
 
     part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
@@ -364,7 +365,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--part1_resume_lr", type=float, default=None,
                         help="Resume lr is used when we want to resume the run from a particular epoch "
                              "but with a different lr")
-
+    # python scripts/cub_sweep.py -p 0.7 --seed 0 --part1_model_epochs -1
     # part2 args
     parser.add_argument("--part1_model_epochs", nargs="+", type=int, default=None,
                         help="Which model epoch to retrain part2 on. Use -1 to ")
@@ -384,6 +385,8 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                         help="Resume lr is used when we want to resume the run from a particular epoch "
                              "but with a different lr")
     parser.add_argument("--part2_multi_subsample", action="store_true", default=False)
+    parser.add_argument("--part2_group_adjustment", type=str, default="0.0",
+                        help="This set the group adjustment parameter for retraining")
     parser.add_argument("--tau_norm_after_part2", action="store_true", default=False)
     parser.add_argument("--part2_train_full", action="store_true", default=False,
                         help="By default we are only retraining the last layer for part2. "
