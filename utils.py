@@ -111,6 +111,12 @@ class AverageMeter(object):
 
 
 def check_args(args):
+    assert 1 >= args.part1_split_proportion >= 0 and 1 >= args.val_split_proportion >= 0, \
+        f"split proportion must be in [0,1]. Part1_p = {args.part1_split_proportion} and val_p = {args.val_split_proportion}"
+
+    if args.val_split_proportion > 0 and args.part1_split_proportion < 1:
+        print("Warning: ONLY USING VAL_SPLIT (since it's set) and not TRAIN_SPLIT...")
+
     if args.shift_type == "confounder":
         assert args.confounder_names
         assert args.target_name
@@ -121,7 +127,7 @@ def check_args(args):
 
 def split_data(dataset, part1_proportion=0.5, seed=None):
     """
-        Split data into 2 parts given a ratio.
+        Split data into 2 parts given a ratio. Return part1, part2
     """
     random = np.random.RandomState(seed)
     n_exs = len(dataset)

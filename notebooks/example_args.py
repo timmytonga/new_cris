@@ -70,6 +70,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "minimum_variational_weight": 0,
         "part": part,
         "part1_split_proportion": split_proportion,
+        "val_split_proportion": 0,
         "part1_use_all_data": part1_use_all_data,
         "part1_model_epoch": 10,
         "part1_pgl_model_epoch": None,
@@ -245,7 +246,17 @@ RUN_TAU_NORM = False
 MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
 
 
-def set_args_and_run_sweep(mainargs: TwoPartArgs, args, PART2_USE_OLD_MODEL=True):
+def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
+
+    project_name = "ValRgl" if args.val_split else f"{'Rgl' if not args.part2_use_pgl else 'Pgl'}"
+
+    mainargs = mainargsConstructor(wandb=not args.no_wandb,
+                     seed=args.seed,
+                     show_progress=args.show_progress,
+                     project_name=project_name,
+                     gpu=args.gpu,
+                     part1_save_every=args.part1_save_every,
+                     part1_use_all_data=args.part1_use_all_data)
     main_part1_args = mainargs.part1_args
     main_part2_args = mainargs.part2_args
 
@@ -294,6 +305,7 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args, PART2_USE_OLD_MODEL=True
     extra_part2 = f"{'rw' if main_part2_args.reweight_groups else ''}" \
                   f"{'_subsample' if main_part2_args.subsample_minority else ''}" \
                   f"{'_rgl' if main_part2_args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}"
+    extra_part2 += f'_ga{main_part2_args.generalization_adjustment}' if main_part2_args.generalization_adjustment != '0.0' else ''
 
     # tau norm args
     tau_norm_args = DotDict(main_part2_args.copy())
@@ -306,31 +318,44 @@ def set_args_and_run_sweep(mainargs: TwoPartArgs, args, PART2_USE_OLD_MODEL=True
     else:
         p1me = args.part1_model_epochs
 
-    print(f"Run with p1me {p1me} and p {args.p}")
-
+    print(f"Run with p1me {p1me} and p {args.p} and {'val split' if args.val_split else 'train split'}")
+    pname_stem = 'valp' if args.val_split else 'p'
     for p in args.p:
-        # prep part 1
-        main_part1_args.part1_split_proportion = p
-        stem = f"{'all' if args.part1_use_all_data else f'p{p}'}{extra_part1}_wd{args.part1_wd}_lr{part1_log_lr}"
+        # prep part 1 and 2 proportions params
+        if args.val_split:
+            main_part1_args.val_split_proportion = p
+            main_part2_args.val_split_proportion = p
+            tau_norm_args.val_split_proportion = p
+        else:
+            main_part1_args.val_split_proportion = 0  # Don't really wanna set this to anything non-zero here...
+            main_part2_args.val_split_proportion = 0
+            tau_norm_args.val_split_proportion = 0
+
+            main_part1_args.part1_split_proportion = p
+            main_part2_args.part1_split_proportion = p
+            tau_norm_args.part1_split_proportion = p
+
+        # make some log dirs
+        pname = pname_stem + p
+        stem = f"{'all' if (args.part1_use_all_data or args.val_split) else pname}{extra_part1}" \
+               f"_wd{args.part1_wd}_lr{part1_log_lr}"
         root_log = os.path.join(mainargs.root_log, stem)
         main_part1_args.log_dir = os.path.join(root_log, f"part1_s{args.seed}")
+
         # run part1
         if args.run_part1:  # ensure we have already run part 1 if this is set to False
             my_run_expt.main(main_part1_args)
-            if args.part1_use_all_data:
+            if args.part1_use_all_data or args.val_split:
                 print(f"******** [PART1_USE_ALL_DATA] SKIPPING TRAINING PART1 FOR p={p} SINCE ALREADY TRAINED ON ALL "
                       f"DATA *******")
                 args.run_part1 = False  # since we will be training the same model again
 
-        # prep part 2
-        main_part2_args.part1_split_proportion = p
-        tau_norm_args.part1_split_proportion = p
         # now run part2
         for part1_model_epoch in p1me:
             main_part2_args.part1_model_epoch = part1_model_epoch
-            print(f"Running p={p} and p1me={part1_model_epoch}")
+            print(f"Running {pname} and p1me={part1_model_epoch}")
             main_part2_args.log_dir = os.path.join(root_log, f"part2_{oll_part2}{part1_model_epoch}{extra_part2}_"
-                                                             f"{args.part2_loss_type}_p{p}_wd{args.part2_wd}"
+                                                             f"{args.part2_loss_type}_{pname}_wd{args.part2_wd}"
                                                              f"_lr{part2_log_lr}"
                                                              f"_s{args.seed}")
             tau_norm_args.log_dir = os.path.join(main_part2_args.log_dir, "tau_norm")
@@ -346,6 +371,9 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=seed)
     parser.add_argument("-p", nargs="+", type=float, default=p)
+    parser.add_argument("--val_split", action="store_true", default=False,
+                        help="Set this to use p on the validation set. "
+                             "Here, p determines the proportion of the validation set to finetune part2.")
     parser.add_argument("--no_wandb", action="store_true", default=False)
     parser.add_argument("--gpu", type=int, default=gpu)
     parser.add_argument("--show_progress", action="store_true", default=False)
