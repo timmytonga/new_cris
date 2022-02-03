@@ -6,7 +6,7 @@ from models import model_attributes
 from torch.utils.data import Dataset
 from data.confounder_dataset import ConfounderDataset
 
-# from transformers import AutoTokenizer, BertTokenizer
+from transformers import AutoTokenizer, BertTokenizer
 
 
 class JigsawDataset(ConfounderDataset):
@@ -18,14 +18,14 @@ class JigsawDataset(ConfounderDataset):
     """
 
     def __init__(
-        self,
-        root_dir,
-        target_name,
-        confounder_names,
-        augment_data=False,
-        model_type=None,
-        metadata_csv_name="all_data_with_identities.csv",
-        batch_size=None,
+            self,
+            root_dir,
+            target_name,
+            confounder_names,
+            augment_data=False,
+            model_type=None,
+            metadata_csv_name="all_data_with_identities.csv",
+            batch_size=None,
     ):
         # def __init__(self, args):
         self.dataset_name = "jigsaw"
@@ -47,7 +47,7 @@ class JigsawDataset(ConfounderDataset):
 
         assert self.augment_data == False
         assert self.model in ["bert-base-cased", "bert-base-uncased"]
-        
+
         self.data_dir = os.path.join(self.root_dir, "data")
         if not os.path.exists(self.data_dir):
             raise ValueError(
@@ -81,7 +81,7 @@ class JigsawDataset(ConfounderDataset):
             # Map to groups
             self.n_groups = self.n_classes * pow(2, self.n_confounders)
             self.group_array = (
-                self.y_array * (self.n_groups / 2) + self.confounder_array
+                    self.y_array * (self.n_groups / 2) + self.confounder_array
             ).astype("int")
 
         # Extract splits
@@ -95,7 +95,7 @@ class JigsawDataset(ConfounderDataset):
 
         # Extract text
         self.text_array = list(self.metadata_df["comment_text"])
-        # self.tokenizer = BertTokenizer.from_pretrained(self.model)
+        self.tokenizer = BertTokenizer.from_pretrained(self.model)
 
     def __len__(self):
         return len(self.y_array)

@@ -4,7 +4,7 @@ import tau_norm
 import argparse
 from utils import DotDict, ROOT_DIR_PATH
 
-BATCH_SIZE = 32  # default is 32
+DEFAULT_BATCH_SIZE = 32  # default is 32
 PROJECT_NAME = "split_pgl"
 # ROOT_DIR_PATH = "/home/thien/research"
 
@@ -14,7 +14,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
                       metadata_path, split_proportion, confounder_names, target_name,
                       metadata_csv_name, part,
                       data_root_dir=f"{ROOT_DIR_PATH}/datasets/",
-                      batch_size=BATCH_SIZE, project_name=PROJECT_NAME, show_progress=False, log_every=151):
+                      batch_size=DEFAULT_BATCH_SIZE, project_name=PROJECT_NAME, show_progress=False, log_every=151):
     return DotDict({
         "q": 0.7,
         "lr": lr,
@@ -267,6 +267,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part1_args.reweight_groups = args.part1_reweight
     main_part1_args.save_best = args.part1_save_best
     main_part1_args.run_test = args.run_test
+    main_part1_args.batch_size = args.batch_size
 
     part1_log_lr = args.part1_lr  # this is to help with resuming the correct model
     if args.part1_resume_epoch >= 0:
@@ -287,6 +288,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.multi_subsample = args.part2_multi_subsample
     main_part2_args.run_test = args.run_test
     main_part2_args.generalization_adjustment = args.part2_group_adjustment
+    main_part2_args.batch_size = args.batch_size
     RUN_PART2 = not args.no_part2
 
     part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
@@ -367,7 +369,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
 
 def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                        part1_wd=1e-4, part1_lr=1e-4, part1_n_epochs=51,
-                       part2_wd=1e-4, part2_lr=1e-4, part2_n_epochs=51):
+                       part2_wd=1e-4, part2_lr=1e-4, part2_n_epochs=51, batch_size=DEFAULT_BATCH_SIZE):
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=seed)
     parser.add_argument("-p", nargs="+", type=float, default=p)
@@ -378,6 +380,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--gpu", type=int, default=gpu)
     parser.add_argument("--show_progress", action="store_true", default=False)
     parser.add_argument("--run_test", action="store_true", default=False)
+    parser.add_argument("--batch_size", type=int, default=batch_size)
     # part1 args
     parser.add_argument("--part1_wd", type=float, default=part1_wd)
     parser.add_argument("--part1_lr", type=float, default=part1_lr)
