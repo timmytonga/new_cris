@@ -15,9 +15,13 @@ from data.data import dataset_attributes, shift_types, prepare_data, log_data, l
 from data import dro_dataset
 from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args, get_subsampled_indices
 from utils import ROOT_DIR_PATH
-from train import train, run_epoch
+from train import train
 from generate_pgl import generate_pgl
 from data.folds import Subset
+from pympler import tracker  # memory profiler for memory leak
+
+
+PROFILE_MEMORY = False
 
 ROOT_LOG_DIR = os.path.join(ROOT_DIR_PATH, 'logs')  # "/home/thien/research/pseudogroups/"
 WANDB_LOG_DIR = ROOT_LOG_DIR  # os.path.join(ROOT_LOG_DIR, "wandb")
@@ -51,8 +55,8 @@ def main(args):
             tags = [f"part{args.part}", args.loss_type]
             run_name = f"{'all' if args.part1_use_all_data else pname}" + f"_seed{args.seed}"
         elif args.part == 2:  # part2
-            job_type = f"part2{'_oll' if args.part2_only_last_layer else ''}" \
-                       f"{pname}" \
+            job_type = f"part2{pname}{'_oll' if args.part2_only_last_layer else ''}" \
+                       f"{args.part1_model_epoch}" \
                        f"_{'rgl' if args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}" \
                        f"{'_rw' if args.reweight_groups else ''}"\
                        f"{'_ga' if args.generalization_adjustment != '0.0' else ''}"
@@ -63,6 +67,7 @@ def main(args):
             job_type += f"_{args.loss_type}_wd{args.weight_decay}lr{args.lr}"
             run_name = f"e{args.part1_model_epoch}_seed{args.seed}"
             run_name += f'_ga{args.generalization_adjustment}' if args.generalization_adjustment != '0.0' else ''
+            run_name += f"_resume{args.resume_epoch}" if args.resume else ''
             tags = ['part2', args.loss_type]
         else:
             raise NotImplementedError
@@ -76,13 +81,14 @@ def main(args):
         wandb.config.update(args)
 
     # Bert specific params
-    if args.model.startswith("bert") and args.use_bert_params:
-        print(f"Using BERT param with BERT")
-        args.max_grad_norm = 1.0
-        args.adam_epsilon = 1e-8
-        args.warmup_steps = 0
-    else:
-        print("Warning: Not using BERT params when training BERT")
+    if args.model.startswith("bert"):
+        if args.use_bert_params:
+            print(f"Using BERT param with BERT")
+            args.max_grad_norm = 1.0
+            args.adam_epsilon = 1e-8
+            args.warmup_steps = 0
+        else:
+            print("Warning: Not using BERT params when training BERT")
 
     # Initialize logs
     if os.path.exists(args.log_dir) and args.resume:
@@ -328,6 +334,10 @@ def main(args):
     else:
         epoch_offset = 0
 
+    if PROFILE_MEMORY:
+        logger.write(f'[WARNING] Profiling memory. Everything will be extremely slow!!!\n')
+        tr = tracker.SummaryTracker()
+
     train(
         model,
         criterion,
@@ -349,6 +359,9 @@ def main(args):
 
     if args.wandb:
         wandb.finish()
+
+    if PROFILE_MEMORY:
+        tr.print_diff()
 
 
 def make_data_split(data, split_proportion, seed, ):
