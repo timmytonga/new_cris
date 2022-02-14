@@ -128,16 +128,40 @@ class TwoPartArgs:
 # --metadata_path results/jigsaw/jigsaw_sample_exp/metadata_aug.csv --lr 1e-05 --weight_decay 0.01 --up_weight 0
 # --metadata_csv_name all_data_with_identities.csv --model bert-base-uncased --use_bert_params 0 --wandb --loss_type erm
 class MyCivilCommentsArgs(TwoPartArgs):
+    choices = [
+        'male',
+        'female',
+        'christian',
+        'muslim',
+        'other_religion',
+        'black',
+        'white',
+        'LGBTQ',
+        'any_identity',
+        'all'
+    ]
+
     def __init__(self, n_epochs=6, wd=1e-2, lr=1e-5, part1_use_all_data=False,
                  upweight=0, run_name='civilComments_run', project_name='splitpgl',
                  only_last_layer=True, seed=0, wandb=True, show_progress=True,
-                 split_proportion=0.5, gpu=0, part1_save_every=10):
+                 split_proportion=0.5, gpu=0, part1_save_every=10, use_group="identity_any"):
         self.upweight = upweight
         self.only_last_layer = only_last_layer
         self.root_log = f"{ROOT_DIR_PATH}/pseudogroups/CivilComments/splitpgl_sweep_logs"
         self.ROOT_LOG = os.path.join(self.root_log,
                                      f"/SPGL_proportion{split_proportion}_epochs{n_epochs}_lr{lr}_weightdecay{wd}")
-        confounder_names = ["identity_any"]
+        all_groups = [
+            'male',
+            'female',
+            'christian',
+            'muslim',
+            'other_religion',
+            'black',
+            'white',
+            'LGBTQ'
+        ]
+
+        confounder_names = all_groups if use_group == 'all' else [use_group]
         dataset_name = "jigsaw"
         target_name = "toxicity"
         metadata_csv_path = "all_data_with_identities.csv"
@@ -250,13 +274,24 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
 
     project_name = "ValRgl" if args.val_split else f"{'Rgl' if not args.part2_use_pgl else 'Pgl'}"
 
-    mainargs = mainargsConstructor(wandb=not args.no_wandb,
-                     seed=args.seed,
-                     show_progress=args.show_progress,
-                     project_name=project_name,
-                     gpu=args.gpu,
-                     part1_save_every=args.part1_save_every,
-                     part1_use_all_data=args.part1_use_all_data)
+    if args.jigsaw_use_group is not "any_identity":
+        mainargs = mainargsConstructor(wandb=not args.no_wandb,
+                                       seed=args.seed,
+                                       show_progress=args.show_progress,
+                                       project_name=project_name,
+                                       gpu=args.gpu,
+                                       part1_save_every=args.part1_save_every,
+                                       part1_use_all_data=args.part1_use_all_data,
+                                       use_group=args.jigsaw_use_group)
+    else:
+        mainargs = mainargsConstructor(wandb=not args.no_wandb,
+                         seed=args.seed,
+                         show_progress=args.show_progress,
+                         project_name=project_name,
+                         gpu=args.gpu,
+                         part1_save_every=args.part1_save_every,
+                         part1_use_all_data=args.part1_use_all_data)
+
     main_part1_args = mainargs.part1_args
     main_part2_args = mainargs.part2_args
 
@@ -422,6 +457,9 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--part2_train_full", action="store_true", default=False,
                         help="By default we are only retraining the last layer for part2. "
                              "Set this if want to retrain all.")
+
+    parser.add_argument("--jigsaw_use_group", choices=MyCivilCommentsArgs.choices, default='any_identity',
+                        help="Specify which group to use. Can specify multiple groups.")
     args = parser.parse_args()
     return args
 

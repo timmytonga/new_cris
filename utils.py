@@ -12,6 +12,8 @@ from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
 import data
 from data.utils import ROOT_DIR_PATH
+import pandas as pd
+from pprint import pformat
 
 # ROOT_DIR_PATH = "/home/thien/research"
 
@@ -355,3 +357,57 @@ def get_subsampled_indices(train_data: data.dro_dataset.DRODataset) -> np.array:
         # print(f'g indices (len {len(group_indices)})', group_indices)
     # print("final len", len(indices))
     return indices
+
+
+def _cc_get_output_and_meta_df(epoch, file_path):
+    # todo: don't load metadata every time???
+    meta_data_path = '/home/thien/research/datasets/jigsaw/data/all_data_with_identities.csv'
+    # file_path = root_dir + f'{part}_s{seed}/output_{val_or_test}_epoch_{epoch}.csv'
+    output_df = pd.read_csv(file_path)
+    metadata_df = pd.read_csv(meta_data_path)
+    test_df = metadata_df.iloc[output_df[f'indices_None_epoch_{epoch}_val']]
+    test_df['labels'] = (test_df['toxicity'] >= 0.5).astype(int)  # this gives a warning...
+    test_df.reset_index(inplace=True)
+
+    return output_df, test_df
+
+
+def _cc_analyze_accs(output_df, test_df, epoch, valortest=None):
+    all_groups = [
+        'male',
+        'female',
+        'christian',
+        'muslim',
+        'other_religion',
+        'black',
+        'white',
+        'LGBTQ'
+    ]
+    pred_col_name = f'y_pred_None_epoch_{epoch}_val'
+    group_acc_dict = {}
+    group_n_dict = {}
+    for toxic in range(2):  # in 0 or 1
+        for g in range(len(all_groups)):
+            group_key = f"{valortest}/{(all_groups[g], toxic)}"
+            group_idx = toxic * len(all_groups) + g
+            idxs = (test_df['labels'] == toxic) & (test_df[all_groups[g]] == 1)
+            total_n_g = sum(idxs)
+            group_n_dict[group_key] = total_n_g
+            if total_n_g <= 0:
+                group_acc_dict[group_key] = 1.1  # vacuously perfect... but set to 1.1 to distinguish
+                continue
+            correct_pred = sum(test_df[idxs]['labels'] == output_df[idxs][pred_col_name])
+            group_acc_dict[group_key] = correct_pred / total_n_g
+    return group_acc_dict, group_n_dict
+
+
+def get_civil_comments_stats(epoch, file_path, valortest=None, wandb=None, logger=None):
+    output_df, test_df = _cc_get_output_and_meta_df(epoch, file_path)
+    group_acc_dict, group_n_dict = _cc_analyze_accs(output_df, test_df, epoch, valortest)
+    group_acc_dict[f"{valortest}/true_wg_acc"] = min(v for k, v in group_acc_dict.items())
+    group_acc_dict["epoch"] = epoch
+    # avg_acc = sum(output_df[pred_col_name] == output_df[true_col_name]) / len(output_df)
+    if logger is not None:
+        logger.write(pformat(group_acc_dict)+"\n")
+    if wandb is not None:
+        wandb.log(group_acc_dict)

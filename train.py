@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 
+import utils
 from utils import AverageMeter, accuracy, save_onnx_model, get_subsampled_indices
 from loss import LossComputer
 
@@ -181,6 +182,8 @@ def train(
     wandb=None,
     wandb_root_group=""
 ):
+    if args.dataset == 'jigsaw':
+        print("Jigsaw dataset... Performing validation on overlapping groups. ")
     # device = torch.device(f"cuda:{args.gpu}")
     # torch.cuda.set_device(args.gpu)
     model = model.cuda()  # the device should've been set universally in the beginning...
@@ -323,6 +326,9 @@ def train(
             wandb_group=f"{wandb_root_group}val",
             wandb=wandb,
         )
+        if args.dataset == 'jigsaw':
+            output_loc = os.path.join(args.log_dir, f"output_val_epoch_{epoch}.csv")
+            utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=logger)
 
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
@@ -353,6 +359,9 @@ def train(
                 wandb_group=f"{wandb_root_group}test",
                 wandb=wandb,
             )
+            if args.dataset == 'jigsaw':
+                output_loc = os.path.join(args.log_dir, f"output_test_epoch_{epoch}.csv")
+                utils.get_civil_comments_stats(epoch, output_loc, valortest='test', wandb=wandb, logger=logger)
 
         # Inspect learning rates
         if (epoch + 1) % 1 == 0:

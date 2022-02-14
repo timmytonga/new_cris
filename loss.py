@@ -134,7 +134,7 @@ class LossComputer:
     def compute_group_avg(self, losses, group_idx):
         # compute observed counts and mean loss for each group
         group_map = (group_idx == torch.arange(
-            self.n_groups).unsqueeze(1).long().cuda()).float()
+            self.n_groups).unsqueeze(1).long().cuda()).float()  # unsqueeze adds another dim
 
         group_count = group_map.sum(1)
         group_denom = group_count + (group_count == 0).float()  # avoid nans
