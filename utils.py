@@ -16,6 +16,7 @@ import pandas as pd
 from pprint import pformat
 
 # ROOT_DIR_PATH = "/home/thien/research"
+pd.options.mode.chained_assignment = None  # default='warn'  suppress pesky warning
 
 
 class DotDict(dict):
@@ -409,5 +410,7 @@ def get_civil_comments_stats(epoch, file_path, valortest=None, wandb=None, logge
     # avg_acc = sum(output_df[pred_col_name] == output_df[true_col_name]) / len(output_df)
     if logger is not None:
         logger.write(pformat(group_acc_dict)+"\n")
+        logger.flush()
     if wandb is not None:
         wandb.log(group_acc_dict)
+    print(f"finish get_civil_comments_stats for {valortest} epoch {epoch}")

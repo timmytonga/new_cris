@@ -328,10 +328,11 @@ def train(
         )
         if args.dataset == 'jigsaw':
             output_loc = os.path.join(args.log_dir, f"output_val_epoch_{epoch}.csv")
-            utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=logger)
+            utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=None)
 
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
+            print(f"[{epoch}] Running test...")
             test_loss_computer = LossComputer(
                 criterion,
                 loss_type=args.loss_type,
@@ -359,9 +360,10 @@ def train(
                 wandb_group=f"{wandb_root_group}test",
                 wandb=wandb,
             )
+            print(f"[{epoch}] Done running test...")
             if args.dataset == 'jigsaw':
                 output_loc = os.path.join(args.log_dir, f"output_test_epoch_{epoch}.csv")
-                utils.get_civil_comments_stats(epoch, output_loc, valortest='test', wandb=wandb, logger=logger)
+                utils.get_civil_comments_stats(epoch, output_loc, valortest='test', wandb=wandb, logger=None)
 
         # Inspect learning rates
         if (epoch + 1) % 1 == 0:
