@@ -324,6 +324,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.run_test = args.run_test
     main_part2_args.generalization_adjustment = args.part2_group_adjustment
     main_part2_args.batch_size = args.batch_size
+    main_part2_args.part2_only_last_layer  = not args.part2_train_full_network
     RUN_PART2 = not args.no_part2
 
     part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
@@ -447,6 +448,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--no_part2", action="store_true", default=False)
     parser.add_argument("--part2_resume_epoch", type=int, default=-1,
                         help="Which epoch are we resuming from")
+    parser.add_argument("--part2_train_full_network", action="store_true", default=False)
     parser.add_argument("--part2_resume_lr", type=float, default=None,
                         help="Resume lr is used when we want to resume the run from a particular epoch "
                              "but with a different lr")
