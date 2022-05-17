@@ -76,8 +76,8 @@ def run_epoch(
                 outputs = model(x)
 
             # running loss_computer computes other stats like group accuracy and such
-            # loss_main = loss_computer.loss(outputs, y, g, is_training)
-            loss_main = criterion(outputs, y).mean()
+            loss_main = loss_computer.loss(outputs, y, g, is_training)
+            # loss_main = criterion(outputs, y).mean()
             # update model
             if is_training:
                 if (args.model.startswith("bert") and args.use_bert_params): 
@@ -91,82 +91,82 @@ def run_epoch(
                     optimizer.zero_grad()
                     loss_main.backward()
                     optimizer.step()
-        #
-        #     output_df = pd.DataFrame()  # dataframe to save to output_{train/val/test}_epoch
-        #
-        #     # Calculate stats -- get the prediction and compare with groundtruth -- save to output df
-        #     if batch_idx == 0:
-        #         acc_y_pred = np.argmax(outputs.detach().cpu().numpy(), axis=1)
-        #         acc_y_true = y.detach().cpu().numpy()
-        #         acc_g_true = g.detach().cpu().numpy()
-        #         indices = data_idx.detach().cpu().numpy()
-        #
-        #         probs = outputs.detach().cpu().numpy()
-        #     else:  # concatenate
-        #         acc_y_pred = np.concatenate([
-        #             acc_y_pred,
-        #             np.argmax(outputs.detach().cpu().numpy(), axis=1)
-        #         ])
-        #         acc_y_true = np.concatenate([acc_y_true, y.detach().cpu().numpy()])
-        #         acc_g_true = np.concatenate([acc_g_true, g.detach().cpu().numpy()])
-        #         indices = np.concatenate([indices, data_idx.detach().cpu().numpy()])
-        #         probs = np.concatenate([probs, outputs.detach().cpu().numpy()], axis=0)
-        #
-        #     assert probs.shape[0] == indices.shape[0]
-        #     # TODO: make this cleaner. Probably by avoid duplicate and concatenation somehow
-        #     run_name = f"{csv_name}_epoch_{epoch}_val"
-        #     output_df[f"y_pred_{run_name}"] = acc_y_pred
-        #     output_df[f"y_true_{run_name}"] = acc_y_true
-        #     output_df[f"indices_{run_name}"] = indices
-        #     output_df[f"g_true_{run_name}"] = acc_g_true
-        #
-        #     for class_ind in range(probs.shape[1]):
-        #         output_df[f"pred_prob_{run_name}_{class_ind}"] = probs[:, class_ind]
-        #     # update csv logs and wandb
-        #     if is_training and (batch_idx + 1) % log_every == 0:
-        #         # this csv logger generates the train/val/test.csv that contains aggregate info per epoch
-        #         run_stats = loss_computer.get_stats(model, args)
-        #         csv_logger.log(epoch, batch_idx, run_stats)
-        #
-        #         csv_logger.flush()
-        #         loss_computer.log_stats(logger, is_training)
-        #         loss_computer.reset_stats()
-        #         if wandb is not None:  # log into wandb
-        #             wandb_stats = {
-        #                 wandb_group + "/" + key: run_stats[key] for key in run_stats.keys()
-        #             }
-        #             wandb_stats["epoch"] = epoch
-        #             wandb_stats["batch_idx"] = batch_idx
-        #             wandb.log(wandb_stats)
-        # # save the model's classification on the dataset for this epoch
-        # # concern: the model changes as the data gets classified. Wonder how much impact this has
-        # if run_name is not None:
-        #     save_dir = "/".join(csv_logger.path.split("/")[:-1])
-        #     # if not os.path.exists(save_dir):
-        #     #     os.makedirs(save_dir)
-        #     output_df.to_csv(
-        #         os.path.join(save_dir,
-        #                         f"output_{wandb_group}_epoch_{epoch}.csv"))
-        #     print("Saved", os.path.join(save_dir,
-        #                         f"output_{wandb_group}_epoch_{epoch}.csv"))
-        # # log the final epoch -- might be repetitive: can just move code up there around?
-        # if (not is_training) or loss_computer.batch_count > 0:
-        #     run_stats = loss_computer.get_stats(model, args)
-        #     if wandb is not None:
-        #         assert wandb_group is not None
-        #         wandb_stats = {
-        #             wandb_group + "/" + key: run_stats[key] for key in run_stats.keys()
-        #         }
-        #         wandb_stats["epoch"] = epoch
-        #         wandb_stats["batch_idx"] = batch_idx
-        #         wandb.log(wandb_stats)
-        #         print("logged to wandb")
-        #     # this is the main thing that differ?
-        #     csv_logger.log(epoch, batch_idx, run_stats)
-        #     csv_logger.flush()
-        #     loss_computer.log_stats(logger, is_training)
-        #     if is_training:
-        #         loss_computer.reset_stats()
+
+            output_df = pd.DataFrame()  # dataframe to save to output_{train/val/test}_epoch
+
+            # Calculate stats -- get the prediction and compare with groundtruth -- save to output df
+            if batch_idx == 0:
+                acc_y_pred = np.argmax(outputs.detach().cpu().numpy(), axis=1)
+                acc_y_true = y.detach().cpu().numpy()
+                acc_g_true = g.detach().cpu().numpy()
+                indices = data_idx.detach().cpu().numpy()
+
+                probs = outputs.detach().cpu().numpy()
+            else:  # concatenate
+                acc_y_pred = np.concatenate([
+                    acc_y_pred,
+                    np.argmax(outputs.detach().cpu().numpy(), axis=1)
+                ])
+                acc_y_true = np.concatenate([acc_y_true, y.detach().cpu().numpy()])
+                acc_g_true = np.concatenate([acc_g_true, g.detach().cpu().numpy()])
+                indices = np.concatenate([indices, data_idx.detach().cpu().numpy()])
+                probs = np.concatenate([probs, outputs.detach().cpu().numpy()], axis=0)
+
+            assert probs.shape[0] == indices.shape[0]
+            # TODO: make this cleaner. Probably by avoid duplicate and concatenation somehow
+            run_name = f"{csv_name}_epoch_{epoch}_val"
+            output_df[f"y_pred_{run_name}"] = acc_y_pred
+            output_df[f"y_true_{run_name}"] = acc_y_true
+            output_df[f"indices_{run_name}"] = indices
+            output_df[f"g_true_{run_name}"] = acc_g_true
+
+            for class_ind in range(probs.shape[1]):
+                output_df[f"pred_prob_{run_name}_{class_ind}"] = probs[:, class_ind]
+            # update csv logs and wandb
+            if is_training and (batch_idx + 1) % log_every == 0:
+                # this csv logger generates the train/val/test.csv that contains aggregate info per epoch
+                run_stats = loss_computer.get_stats(model, args)
+                csv_logger.log(epoch, batch_idx, run_stats)
+
+                csv_logger.flush()
+                loss_computer.log_stats(logger, is_training)
+                loss_computer.reset_stats()
+                if wandb is not None:  # log into wandb
+                    wandb_stats = {
+                        wandb_group + "/" + key: run_stats[key] for key in run_stats.keys()
+                    }
+                    wandb_stats["epoch"] = epoch
+                    wandb_stats["batch_idx"] = batch_idx
+                    wandb.log(wandb_stats)
+        # save the model's classification on the dataset for this epoch
+        # concern: the model changes as the data gets classified. Wonder how much impact this has
+        if run_name is not None:
+            save_dir = "/".join(csv_logger.path.split("/")[:-1])
+            # if not os.path.exists(save_dir):
+            #     os.makedirs(save_dir)
+            output_df.to_csv(
+                os.path.join(save_dir,
+                                f"output_{wandb_group}_epoch_{epoch}.csv"))
+            print("Saved", os.path.join(save_dir,
+                                f"output_{wandb_group}_epoch_{epoch}.csv"))
+        # log the final epoch -- might be repetitive: can just move code up there around?
+        if (not is_training) or loss_computer.batch_count > 0:
+            run_stats = loss_computer.get_stats(model, args)
+            if wandb is not None:
+                assert wandb_group is not None
+                wandb_stats = {
+                    wandb_group + "/" + key: run_stats[key] for key in run_stats.keys()
+                }
+                wandb_stats["epoch"] = epoch
+                wandb_stats["batch_idx"] = batch_idx
+                wandb.log(wandb_stats)
+                print("logged to wandb")
+            # this is the main thing that differ?
+            csv_logger.log(epoch, batch_idx, run_stats)
+            csv_logger.flush()
+            loss_computer.log_stats(logger, is_training)
+            if is_training:
+                loss_computer.reset_stats()
 
 
 def train(

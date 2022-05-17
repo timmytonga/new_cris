@@ -123,10 +123,6 @@ class TwoPartArgs:
             log_every=log_every)
 
 
-# python run_expt.py -s confounder -d jigsaw -t toxicity -c identity_any --batch_size 16 --root_dir ./jigsaw --n_epochs 3
-# --aug_col None --log_dir results/jigsaw/jigsaw_sample_exp/ERM_upweight_0_epochs_3_lr_1e-05_weight_decay_0.01/model_outputs
-# --metadata_path results/jigsaw/jigsaw_sample_exp/metadata_aug.csv --lr 1e-05 --weight_decay 0.01 --up_weight 0
-# --metadata_csv_name all_data_with_identities.csv --model bert-base-uncased --use_bert_params 0 --wandb --loss_type erm
 class MyCivilCommentsArgs(TwoPartArgs):
     choices = [
         'male',
