@@ -365,53 +365,53 @@ def train(
             if args.dataset == 'jigsaw':
                 output_loc = os.path.join(args.log_dir, f"output_test_epoch_{epoch}.csv")
                 utils.get_civil_comments_stats(epoch, output_loc, valortest='test', wandb=wandb, logger=None)
-        #
-        # # Inspect learning rates
-        # if (epoch + 1) % 1 == 0:
-        #     for param_group in optimizer.param_groups:
-        #         curr_lr = param_group["lr"]
-        #         logger.write("Current lr: %f\n" % curr_lr)
-        #
-        # if args.scheduler and args.model != "bert":
-        #     if args.loss_type == "group_dro":
-        #         val_loss, _ = val_loss_computer.compute_robust_loss_greedy(
-        #             val_loss_computer.avg_group_loss,
-        #             val_loss_computer.avg_group_loss)
-        #     else:
-        #         val_loss = val_loss_computer.avg_actual_loss
-        #     scheduler.step(
-        #         val_loss)  # scheduler step to update lr at the end of epoch
-        #
-        # if epoch < 5 or epoch % args.save_step == 0:
-        #     torch.save(model, os.path.join(args.log_dir,
-        #                                    "%d_model.pth" % epoch))
-        #
-        # if args.save_last:
-        #     # for saving
-        #     x, _ = next(iter(dataset['train_loader']))
-        #     torch.save(model, os.path.join(args.log_dir, "last_model.pth"))
-        #     save_onnx_model(model, x, os.path.join(args.log_dir, "last_model.pth"))
-        #
-        # curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
-        # if curr_val_wg_acc > best_val_wg_acc:
-        #     best_val_wg_epoch = epoch
-        #     best_val_wg_acc = curr_val_wg_acc
-        #     logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc}")
-        #     if wandb is not None:
-        #         wandb.log({'val/best_wg_acc': best_val_wg_acc})
-        #     if args.save_best:
-        #         torch.save(model, os.path.join(args.log_dir, "best_wg_acc_model.pth"))
-        #
-        # if args.save_best:
-        #     if args.loss_type == "group_dro" or args.reweight_groups:
-        #         curr_val_acc = min(val_loss_computer.avg_group_acc)
-        #     else:
-        #         curr_val_acc = val_loss_computer.avg_acc
-        #     logger.write(f"Current validation accuracy: {curr_val_acc}\n")
-        #     if curr_val_acc > best_val_acc:
-        #         best_val_acc = curr_val_acc
-        #         torch.save(model, os.path.join(args.log_dir, "best_model.pth"))
-        #         logger.write(f"Best model saved at epoch {epoch}\n")
+
+        # Inspect learning rates
+        if (epoch + 1) % 1 == 0:
+            for param_group in optimizer.param_groups:
+                curr_lr = param_group["lr"]
+                logger.write("Current lr: %f\n" % curr_lr)
+
+        if args.scheduler and args.model != "bert":
+            if args.loss_type == "group_dro":
+                val_loss, _ = val_loss_computer.compute_robust_loss_greedy(
+                    val_loss_computer.avg_group_loss,
+                    val_loss_computer.avg_group_loss)
+            else:
+                val_loss = val_loss_computer.avg_actual_loss
+            scheduler.step(
+                val_loss)  # scheduler step to update lr at the end of epoch
+
+        if epoch < 5 or epoch % args.save_step == 0:
+            torch.save(model, os.path.join(args.log_dir,
+                                           "%d_model.pth" % epoch))
+
+        if args.save_last:
+            # for saving
+            x, _ = next(iter(dataset['train_loader']))
+            torch.save(model, os.path.join(args.log_dir, "last_model.pth"))
+            save_onnx_model(model, x, os.path.join(args.log_dir, "last_model.pth"))
+
+        curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
+        if curr_val_wg_acc > best_val_wg_acc:
+            best_val_wg_epoch = epoch
+            best_val_wg_acc = curr_val_wg_acc
+            logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc}")
+            if wandb is not None:
+                wandb.log({'val/best_wg_acc': best_val_wg_acc})
+            if args.save_best:
+                torch.save(model, os.path.join(args.log_dir, "best_wg_acc_model.pth"))
+
+        if args.save_best:
+            if args.loss_type == "group_dro" or args.reweight_groups:
+                curr_val_acc = min(val_loss_computer.avg_group_acc)
+            else:
+                curr_val_acc = val_loss_computer.avg_acc
+            logger.write(f"Current validation accuracy: {curr_val_acc}\n")
+            if curr_val_acc > best_val_acc:
+                best_val_acc = curr_val_acc
+                torch.save(model, os.path.join(args.log_dir, "best_model.pth"))
+                logger.write(f"Best model saved at epoch {epoch}\n")
 
         if args.automatic_adjustment:
             gen_gap = val_loss_computer.avg_group_loss - train_loss_computer.exp_avg_loss
