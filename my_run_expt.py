@@ -18,7 +18,6 @@ from utils import ROOT_DIR_PATH
 from train import train
 from generate_pgl import generate_pgl
 from data.folds import Subset
-from pympler import tracker  # memory profiler for memory leak
 
 
 PROFILE_MEMORY = False
