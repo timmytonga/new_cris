@@ -6,6 +6,8 @@ from utils import DotDict, ROOT_DIR_PATH
 
 DEFAULT_BATCH_SIZE = 32  # default is 32
 PROJECT_NAME = "split_pgl"
+
+
 # ROOT_DIR_PATH = "/home/thien/research"
 
 
@@ -267,7 +269,6 @@ MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
 
 
 def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
-
     project_name = "ValRgl" if args.val_split else f"{'Rgl' if not args.part2_use_pgl else 'Pgl'}"
 
     if args.jigsaw_use_group is not "any_identity":
@@ -281,12 +282,12 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
                                        use_group=args.jigsaw_use_group)
     else:
         mainargs = mainargsConstructor(wandb=not args.no_wandb,
-                         seed=args.seed,
-                         show_progress=args.show_progress,
-                         project_name=project_name,
-                         gpu=args.gpu,
-                         part1_save_every=args.part1_save_every,
-                         part1_use_all_data=args.part1_use_all_data)
+                                       seed=args.seed,
+                                       show_progress=args.show_progress,
+                                       project_name=project_name,
+                                       gpu=args.gpu,
+                                       part1_save_every=args.part1_save_every,
+                                       part1_use_all_data=args.part1_use_all_data)
 
     main_part1_args = mainargs.part1_args
     main_part2_args = mainargs.part2_args
@@ -310,6 +311,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     # part 2 args
     main_part2_args.lr, main_part2_args.weight_decay = args.part2_lr, args.part2_wd
     main_part2_args.part2_only_last_layer = not args.part2_train_full
+    main_part2_args.save_best = args.part2_save_best
     main_part2_args.use_real_group_labels = not args.part2_use_pgl
     main_part2_args.part1_pgl_model_epoch = args.part1_pgl_model_epoch
     main_part2_args.loss_type = args.part2_loss_type
@@ -320,7 +322,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.run_test = args.run_test
     main_part2_args.generalization_adjustment = args.part2_group_adjustment
     main_part2_args.batch_size = args.batch_size
-    main_part2_args.part2_only_last_layer  = not args.part2_train_full
+    main_part2_args.part2_only_last_layer = not args.part2_train_full
     RUN_PART2 = not args.no_part2
 
     part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
@@ -454,6 +456,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--part2_train_full", action="store_true", default=False,
                         help="By default we are only retraining the last layer for part2. "
                              "Set this if want to retrain all.")
+    parser.add_argument("--part2_save_best", action="store_true", default=False)
 
     parser.add_argument("--jigsaw_use_group", choices=MyCivilCommentsArgs.choices, default='any_identity',
                         help="Specify which group to use. Can specify multiple groups.")

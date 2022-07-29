@@ -20,6 +20,7 @@ import os
 # device = torch.device('cuda:0')
 criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
+
 def run_epoch(
     epoch,
     model,
