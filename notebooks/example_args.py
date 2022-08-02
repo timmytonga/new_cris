@@ -73,6 +73,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "part": part,
         "part1_split_proportion": split_proportion,
         "val_split_proportion": 0,
+        "reduce_val_fraction": 1,
         "part1_use_all_data": part1_use_all_data,
         "part1_model_epoch": 10,
         "part1_pgl_model_epoch": None,
@@ -300,6 +301,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part1_args.save_best = args.part1_save_best
     main_part1_args.run_test = args.run_test
     main_part1_args.batch_size = args.batch_size
+    main_part1_args.reduce_val_fraction = args.reduce_val_fraction
 
     part1_log_lr = args.part1_lr  # this is to help with resuming the correct model
     if args.part1_resume_epoch >= 0:
@@ -323,6 +325,8 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.generalization_adjustment = args.part2_group_adjustment
     main_part2_args.batch_size = args.batch_size
     main_part2_args.part2_only_last_layer = not args.part2_train_full
+    main_part2_args.reduce_val_fraction = args.reduce_val_fraction
+
     RUN_PART2 = not args.no_part2
 
     part2_log_lr = args.part2_lr  # this is to help with resuming the correct model
@@ -375,6 +379,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
         pname = pname_stem + str(p)
         stem = f"{'all' if (args.part1_use_all_data or args.val_split) else pname}{extra_part1}" \
                f"_wd{args.part1_wd}_lr{part1_log_lr}"
+        stem += f"_valfrac{args.reduce_val_fraction}"
         root_log = os.path.join(mainargs.root_log, stem)
         main_part1_args.log_dir = os.path.join(root_log, f"part1_s{args.seed}")
 
@@ -410,6 +415,9 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
     parser.add_argument("--val_split", action="store_true", default=False,
                         help="Set this to use p on the validation set. "
                              "Here, p determines the proportion of the validation set to finetune part2.")
+    parser.add_argument("--reduce_val_fraction", type=float, default=1,
+                        help="Use only this fraction of the validation set.")
+
     parser.add_argument("--no_wandb", action="store_true", default=False)
     parser.add_argument("--gpu", type=int, default=gpu)
     parser.add_argument("--show_progress", action="store_true", default=False)

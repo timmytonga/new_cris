@@ -20,8 +20,6 @@ from generate_pgl import generate_pgl
 from data.folds import Subset
 
 
-PROFILE_MEMORY = False
-
 ROOT_LOG_DIR = os.path.join(ROOT_DIR_PATH, 'logs')  # "/home/thien/research/pseudogroups/"
 WANDB_LOG_DIR = ROOT_LOG_DIR  # os.path.join(ROOT_LOG_DIR, "wandb")
 
@@ -126,12 +124,16 @@ def main(args):
             part1_data = part1and2_data['part1']  # part2_data = part1and2_data['part2']
         else:  # we need to split data
             logger.write(f"*** PART1: SPLITTING {'TRAIN' if args.val_split_proportion == 0 else 'VAL'} DATA ***\n")
+            if args.reduce_val_fraction != 1:
+                assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
+                logger.write(f"Using only {args.reduce_val_fraction} fraction of the validation set")
+                val_data, _ = make_data_split(val_data, args.reduce_val_fraction, args.seed)
             if args.val_split_proportion == 0:  # we are NOT splitting validation
                 part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
             else:  # we ARE splitting validation
                 part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed)
-                val_data = new_val_data  # we are doing validation on this split only now!!!
+                val_data, old_val_data = new_val_data, val_data  # we are doing validation on this split only now!!!
                 part1and2_data = {"part1": train_data, "part2": part2_data}
                 torch.save(new_val_data, os.path.join(args.log_dir, f"new_val_data_{pname}"))
 
@@ -334,9 +336,6 @@ def main(args):
     else:
         epoch_offset = 0
 
-    if PROFILE_MEMORY:
-        logger.write(f'[WARNING] Profiling memory. Everything will be extremely slow!!!\n')
-        tr = tracker.SummaryTracker()
 
     train(
         model,
@@ -360,8 +359,6 @@ def main(args):
     if args.wandb:
         wandb.finish()
 
-    if PROFILE_MEMORY:
-        tr.print_diff()
 
 
 def make_data_split(data, split_proportion, seed, ):
@@ -470,6 +467,9 @@ if __name__ == "__main__":
                         help="Save this much proportion for part2 of the validation set."
                              "Don't set this (i.e. leave it at 0) if want to use part1_split_proportion..."
                              "Otherwise, this will override all part1_split_proportion settings.")
+    parser.add_argument("--reduce_val_fraction", type=float, default=1,
+                        help="Use only this fraction of the validation set.")
+
     # for use with part1
     parser.add_argument("--part1_split_proportion", type=float, default=0.5,
                         help="Split proportion for part1: how much data to use for part1 while the rest for part2")
