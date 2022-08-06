@@ -3,6 +3,7 @@ import os
 import torch
 import numpy as np
 import csv
+import math
 
 import torch
 import torch.nn as nn
@@ -128,25 +129,26 @@ def check_args(args):
         assert args.imbalance_ratio
 
 
-def split_data(dataset, part1_split_fraction=0.5, seed=None, group_balanced=True):
+def my_split_data(dataset, part1_split_fraction=0.5, seed=None, group_balanced=True):
     """
         Split data into 2 parts given a ratio. Return part1, part2.
         group_balanced: sample each group via the same proportion instead of sampling indiscriminately.
     """
+    if group_balanced:
+        part1_idxs, part2_idxs = get_group_balanced_sampled_indices(dataset, part1_split_fraction)
+        part1, part2 = Subset(dataset, part1_idxs), Subset(dataset, part2_idxs)
+        return part1, part2
+    # else not group_balanced
     if type(dataset) == Subset:  # note that this Subset is data.folds.Subset
         idxs = np.random.permutation(dataset.indices)
-        data = dataset.dataset
+        data_fixed = dataset.dataset
     else:  # this is not a Subset i.e. just an ordinary dataset
         idxs = np.random.permutation(np.arange(len(dataset)))
-        data = dataset
-    if group_balanced:
-        part1_idxs, part2_idxs = get_group_balanced_sampled_indices(data, part1_split_fraction)
-        part1, part2 = Subset(data, part1_idxs), Subset(data, part2_idxs)
-        return part1, part2
+        data_fixed = dataset
     n_exs = len(dataset)
     n_part1 = int(n_exs * part1_split_fraction)
     # n_part2 = n_exs - n_part1
-    part1, part2 = Subset(data, idxs[:n_part1]), Subset(data, idxs[n_part1:])  # this is not torch subset
+    part1, part2 = Subset(data_fixed, idxs[:n_part1]), Subset(data_fixed, idxs[n_part1:])  # this is not torch subset
     return part1, part2
 
 
@@ -349,22 +351,25 @@ def save_onnx_model(model, an_input, path, wandb_=None):
         wandb_.save(path)
 
 
-def get_group_balanced_sampled_indices(data, split_fraction):
+def get_group_balanced_sampled_indices(dataset, split_fraction):
     """
         Instead of randomly splitting data, we can split it per group and combine everything
     """
-    group_counts = data.group_counts()
 
     indices = np.array([], dtype=int)
     remaining_idxs = np.array([], dtype=int)
-    group_array = data.get_group_array()
+    group_array = dataset.get_group_array()
 
-    for g in np.arange(data.n_groups):
+    # print(f"[utils/get_group_balanced...] dataset={dataset} with len(dataset)={len(dataset)}")
+
+    for g in np.arange(dataset.n_groups):
         group_indices = np.where((group_array == g))[0]
-        num_g = int(torch.ceil(group_counts[g] * split_fraction))
+        num_g = int(math.ceil(len(group_indices) * split_fraction))
+        # print(f"[utils/get_group_balanced...] g={g}: len(group_indices)={len(group_indices)}")
         permuted_indices = np.sort(np.random.permutation(group_indices))
-        indices = np.concatenate(( indices, permuted_indices[:num_g]))
-        remaining_idxs = np.concatenate(( remaining_idxs, permuted_indices[num_g:]))
+        indices = np.concatenate((indices, permuted_indices[:num_g]))
+        remaining_idxs = np.concatenate((remaining_idxs, permuted_indices[num_g:]))
+    # print(f"[utils/get_group_balanced...] len(indices)={len(indices)} vs. len(remaining_idxs)={len(remaining_idxs)}")
     return indices, remaining_idxs
 
 

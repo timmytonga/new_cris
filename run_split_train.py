@@ -13,7 +13,7 @@ from models import model_attributes
 from data.data import dataset_attributes, shift_types, prepare_data, log_data
 from data import dro_dataset
 from data import folds
-from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args
+from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, my_split_data, check_args
 from train import train, run_epoch
 from loss import LossComputer
 import pandas as pd
@@ -41,7 +41,7 @@ def main(args):
     # first load the train set
     train_data, val_data, test_data = prepare_data(args, train=True)
     # then split it into part1 containing f*n examples of trainset and part2 containing the rest
-    part1, part2 = split_data(train_data.dataset, part1_split_fraction=0.5, seed=args.seed)
+    part1, part2 = my_split_data(train_data.dataset, part1_split_fraction=0.5, seed=args.seed)
     part1_data = dro_dataset.DRODataset(
         part1,
         process_item_fn=None,

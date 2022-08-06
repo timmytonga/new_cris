@@ -11,7 +11,7 @@ import wandb
 from models import model_attributes
 from data.data import dataset_attributes, shift_types, prepare_data, log_data, log_single_data
 from data import dro_dataset
-from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args, \
+from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, my_split_data, check_args, \
     get_subsampled_indices
 from utils import ROOT_DIR_PATH
 from train import train
@@ -126,7 +126,7 @@ def main(args):
             logger.write(f"*** PART1: SPLITTING {'TRAIN' if args.val_split_proportion == 0 else 'VAL'} DATA ***\n")
             if args.reduce_val_fraction != 1:
                 assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
-                logger.write(f"Using only {args.reduce_val_fraction} fraction of the validation set")
+                logger.write(f"*** Using only {args.reduce_val_fraction} fraction of the validation set ***\n")
                 val_data, _ = make_data_split(val_data, args.reduce_val_fraction, args.seed)
             if args.val_split_proportion == 0:  # we are NOT splitting validation
                 part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
@@ -366,8 +366,8 @@ def make_data_split(data, split_proportion, seed, group_balanced=GROUP_BALANCE_S
     """
     # then split it into part1 containing f*n examples of trainset and part2 containing the rest
     if split_proportion < 1:
-        part1, part2 = split_data(data.dataset, part1_split_fraction=split_proportion,
-                                  seed=seed, group_balanced=group_balanced)
+        part1, part2 = my_split_data(data, part1_split_fraction=split_proportion,
+                                     seed=seed, group_balanced=group_balanced)
         part1_data = dro_dataset.DRODataset(
             part1,
             process_item_fn=None,

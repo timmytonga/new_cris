@@ -5,7 +5,7 @@ Implements tau-normalization following [Kang' 20]: rescaling the weights of the 
 
 import os
 import argparse
-from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args
+from utils import set_seed, Logger, CSVBatchLogger, log_args, hinge_loss
 import utils
 import torch
 from train import run_epoch
