@@ -41,7 +41,7 @@ def main(args):
     # first load the train set
     train_data, val_data, test_data = prepare_data(args, train=True)
     # then split it into part1 containing f*n examples of trainset and part2 containing the rest
-    part1, part2 = split_data(train_data.dataset, part1_proportion=0.5, seed=args.seed)
+    part1, part2 = split_data(train_data.dataset, part1_split_fraction=0.5, seed=args.seed)
     part1_data = dro_dataset.DRODataset(
         part1,
         process_item_fn=None,

@@ -1,34 +1,34 @@
 """
 New run_expt that can take into account the split (is this implemented already)?
 """
-import os, csv
+import os
 import argparse
-import pandas as pd
 import torch
 
 import utils
 import wandb
-from copy import deepcopy
 
 from models import model_attributes
 from data.data import dataset_attributes, shift_types, prepare_data, log_data, log_single_data
 from data import dro_dataset
-from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args, get_subsampled_indices
+from utils import set_seed, Logger, CSVBatchLogger, log_args, get_model, hinge_loss, split_data, check_args, \
+    get_subsampled_indices
 from utils import ROOT_DIR_PATH
 from train import train
 from generate_pgl import generate_pgl
 from data.folds import Subset
-
 
 ROOT_LOG_DIR = os.path.join(ROOT_DIR_PATH, 'logs')  # "/home/thien/research/pseudogroups/"
 WANDB_LOG_DIR = ROOT_LOG_DIR  # os.path.join(ROOT_LOG_DIR, "wandb")
 
 BEST_MODEL_EPOCH = -1  # this is to indicate that we are using the best val_avg_acc from part1 to train part2
 NUM_WORKERS = 4  # lower this if memory issue
+GROUP_BALANCE_SAMPLING = True
 
 
 # todo: check why memory increases after every epoch
 # todo: refactor so that one split proportion and a knob to control splitting train or val set
+
 
 def main(args):
     # if part 1: split data --> save split data in log_dir --> train initial model
@@ -55,7 +55,7 @@ def main(args):
             job_type = f"part2{pname}{'_oll' if args.part2_only_last_layer else ''}" \
                        f"{args.part1_model_epoch}" \
                        f"_{'rgl' if args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}" \
-                       f"{'_rw' if args.reweight_groups else ''}"\
+                       f"{'_rw' if args.reweight_groups else ''}" \
                        f"{'_ga' if args.generalization_adjustment != '0.0' else ''}"
             if args.subsample_minority:
                 job_type += '_ss'
@@ -144,16 +144,16 @@ def main(args):
             logger.write("*** PART1: USING ALL DATA TO TRAIN ***\n")
             data["train_data"] = train_data
             data["train_loader"] = dro_dataset.get_loader(train_data,
-                                              train=True,
-                                              reweight_groups=args.reweight_groups,
-                                              **loader_kwargs)
+                                                          train=True,
+                                                          reweight_groups=args.reweight_groups,
+                                                          **loader_kwargs)
         else:  # else we are using only the splitted part1
             part1_data = part1and2_data["part1"]  # this ensures we are using the correct split
             data["train_data"] = part1_data
             data["train_loader"] = dro_dataset.get_loader(part1_data,
-                                              train=True,
-                                              reweight_groups=args.reweight_groups,
-                                              **loader_kwargs)
+                                                          train=True,
+                                                          reweight_groups=args.reweight_groups,
+                                                          **loader_kwargs)
         n_classes = train_data.n_classes
         if args.resume:
             model_path = os.path.join(args.log_dir, f"{args.resume_epoch}_model.pth")
@@ -190,7 +190,7 @@ def main(args):
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
                 torch.save(part1and2_data, data_path)
 
-        if args.val_split_proportion > 0:  # furthermore, we need to load the correct validation data for part2
+        if 0 < args.val_split_proportion < 1:  # furthermore, we need to load the correct validation data for part2
             val_data = torch.load(os.path.join(part1_dir, f"new_val_data_{pname}"))
 
         # Now we either create a loader that uses real group labels or generate pseudogroup labels
@@ -264,7 +264,8 @@ def main(args):
 
         # only last layer
         if args.part2_only_last_layer:
-            assert args.part2_use_old_model, "is this intentional? Retraining and only training last layer --> linear classifier on random features?"
+            assert args.part2_use_old_model, \
+                "is this intentional? Retraining and only training last layer --> linear classifier on random features?"
             # freeze everything except the last layer
             if args.model.startswith("bert"):
                 for name, param in model.named_parameters():
@@ -336,7 +337,6 @@ def main(args):
     else:
         epoch_offset = 0
 
-
     train(
         model,
         criterion,
@@ -360,11 +360,14 @@ def main(args):
         wandb.finish()
 
 
-
-def make_data_split(data, split_proportion, seed, ):
+def make_data_split(data, split_proportion, seed, group_balanced=GROUP_BALANCE_SAMPLING):
+    """
+    Set split_proportion = 1 to make copies
+    """
     # then split it into part1 containing f*n examples of trainset and part2 containing the rest
     if split_proportion < 1:
-        part1, part2 = split_data(data.dataset, part1_proportion=split_proportion, seed=seed)
+        part1, part2 = split_data(data.dataset, part1_split_fraction=split_proportion,
+                                  seed=seed, group_balanced=group_balanced)
         part1_data = dro_dataset.DRODataset(
             part1,
             process_item_fn=None,

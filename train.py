@@ -397,7 +397,7 @@ def train(
         if curr_val_wg_acc > best_val_wg_acc:
             best_val_wg_epoch = epoch
             best_val_wg_acc = curr_val_wg_acc
-            logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc}")
+            logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc:.4f}\n")
             if wandb is not None:
                 wandb.log({'val/best_wg_acc': best_val_wg_acc})
             if args.save_best:
@@ -408,7 +408,7 @@ def train(
                 curr_val_acc = min(val_loss_computer.avg_group_acc)
             else:
                 curr_val_acc = val_loss_computer.avg_acc
-            logger.write(f"Current validation accuracy: {curr_val_acc}\n")
+            logger.write(f"Current validation accuracy: {curr_val_acc:.4f}\n")
             if curr_val_acc > best_val_acc:
                 best_val_acc = curr_val_acc
                 torch.save(model, os.path.join(args.log_dir, "best_model.pth"))

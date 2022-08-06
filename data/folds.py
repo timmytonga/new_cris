@@ -22,7 +22,6 @@ class Subset(torch.utils.data.Dataset):
 
         self.group_array = self.get_group_array(re_evaluate=True)
         self.label_array = self.get_label_array(re_evaluate=True)
-        
 
     def __getitem__(self, idx):
         return self.dataset[self.indices[idx]]
