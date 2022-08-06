@@ -140,7 +140,7 @@ def split_data(dataset, part1_split_fraction=0.5, seed=None, group_balanced=True
         idxs = np.random.permutation(np.arange(len(dataset)))
         data = dataset
     if group_balanced:
-        part1_idxs, part2_idxs = get_group_balanced_sampled_indices(dataset, part1_split_fraction)
+        part1_idxs, part2_idxs = get_group_balanced_sampled_indices(data, part1_split_fraction)
         part1, part2 = Subset(data, part1_idxs), Subset(data, part2_idxs)
         return part1, part2
     n_exs = len(dataset)
