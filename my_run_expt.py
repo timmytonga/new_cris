@@ -190,7 +190,7 @@ def main(args):
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
                 torch.save(part1and2_data, data_path)
 
-        if 0 < args.val_split_proportion < 1:  # furthermore, we need to load the correct validation data for part2
+        if 0 < args.val_split_proportion <= 1:  # furthermore, we need to load the correct validation data for part2
             val_data = torch.load(os.path.join(part1_dir, f"new_val_data_{pname}"))
 
         # Now we either create a loader that uses real group labels or generate pseudogroup labels
