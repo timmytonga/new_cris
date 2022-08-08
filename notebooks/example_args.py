@@ -323,7 +323,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.multi_subsample = args.part2_multi_subsample
     main_part2_args.run_test = args.run_test
     main_part2_args.generalization_adjustment = args.part2_group_adjustment
-    main_part2_args.batch_size = args.batch_size
+    main_part2_args.batch_size = args.part2_batch_size
     main_part2_args.part2_only_last_layer = not args.part2_train_full
     main_part2_args.reduce_val_fraction = args.reduce_val_fraction
 
@@ -448,6 +448,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                         choices=["erm", "group_dro", "joint_dro"])
     parser.add_argument("--part2_subsample", action="store_true", default=False)
     parser.add_argument("--part2_reweight", action="store_true", default=False)
+    parser.add_argument("--part2_batch_size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--part2_lr", type=float, default=part2_lr)
     parser.add_argument("--part2_wd", type=float, default=part2_wd)
     parser.add_argument("--part2_n_epochs", type=int, default=part2_n_epochs)
