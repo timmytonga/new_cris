@@ -272,7 +272,7 @@ MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
 def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     project_name = "ValRgl" if args.val_split else f"{'Rgl' if not args.part2_use_pgl else 'Pgl'}"
 
-    if args.jigsaw_use_group is not "any_identity":
+    if args.jigsaw_use_group != "any_identity":
         mainargs = mainargsConstructor(wandb=not args.no_wandb,
                                        seed=args.seed,
                                        show_progress=args.show_progress,
@@ -411,12 +411,15 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                        part2_wd=1e-4, part2_lr=1e-4, part2_n_epochs=51, batch_size=DEFAULT_BATCH_SIZE):
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=seed)
-    parser.add_argument("-p", nargs="+", type=float, default=p)
+    parser.add_argument("-p", nargs="+", type=float, default=p, help="part1 split proportion")
     parser.add_argument("--val_split", action="store_true", default=False,
                         help="Set this to use p on the validation set. "
-                             "Here, p determines the proportion of the validation set to finetune part2.")
+                             "Here, p determines the proportion of the validation set to finetune part2."
+                             "The rest of the validation set is used for validation."
+                             "This automatically use the full train set to train part1. ")
     parser.add_argument("--reduce_val_fraction", type=float, default=1,
-                        help="Use only this fraction of the validation set.")
+                        help="Use only this fraction of the validation set. "
+                             "Useful for to simulate the extremely limited group label setting.")
 
     parser.add_argument("--no_wandb", action="store_true", default=False)
     parser.add_argument("--gpu", type=int, default=gpu)
