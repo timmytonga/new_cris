@@ -268,7 +268,7 @@ class MyCUBArgs(TwoPartArgs):
 RUN_TAU_NORM = False
 MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
 
-add_to_proj_name = "2"
+add_to_proj_name = ""
 
 
 def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
