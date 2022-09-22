@@ -268,9 +268,12 @@ class MyCUBArgs(TwoPartArgs):
 RUN_TAU_NORM = False
 MIN_TAU, MAX_TAU, TAU_STEP = 1.0, 10.0, 101
 
+add_to_proj_name = "2"
+
 
 def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     project_name = "ValRgl" if args.val_split else f"{'Rgl' if not args.part2_use_pgl else 'Pgl'}"
+    project_name += add_to_proj_name
 
     if args.jigsaw_use_group != "any_identity":
         mainargs = mainargsConstructor(wandb=not args.no_wandb,
