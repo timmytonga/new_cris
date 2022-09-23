@@ -225,7 +225,7 @@ class MyCelebaArgs(TwoPartArgs):
 
 
 class MyCUBArgs(TwoPartArgs):
-    def __init__(self, n_epochs=51, wd=1e-4, lr=1e-3, part1_use_all_data=False,
+    def __init__(self, n_epochs=151, wd=1e-4, lr=1e-3, part1_use_all_data=False,
                  upweight=0, run_name='waterbird_newrun', project_name='splitpgl',
                  only_last_layer=True, seed=0, wandb=True, show_progress=True,
                  split_proportion=0.5, gpu=0, part1_save_every=10):
