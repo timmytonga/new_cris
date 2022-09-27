@@ -142,6 +142,7 @@ def main(args):
                 part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion,
                                                            args.seed, group_balanced=args.per_group_splitting)
                 val_data, old_val_data = new_val_data, val_data  # we are doing validation on this split only now!!!
+                logger.write(f"*** Using the reduced validation for validation part1!!! ***\n")
                 # if we are splitting validation, part1 is just train_data
                 part1and2_data = {"part1": train_data, "part2": part2_data}
                 torch.save(new_val_data, os.path.join(args.log_dir, f"new_val_data_{pname}"))
