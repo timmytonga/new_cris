@@ -39,6 +39,7 @@ class LossComputer:
         self.group_str = dataset.group_str
 
         self.avg_group_acc = torch.zeros(self.n_groups).cuda()
+        self.avg_acc = 0.0
 
         if self.loss_type == "joint_dro":
             # Joint DRO reg should be 0.
@@ -158,7 +159,6 @@ class LossComputer:
         self.avg_group_loss = torch.zeros(self.n_groups).cuda()
         self.avg_per_sample_loss = 0.0
         self.avg_actual_loss = 0.0
-        self.avg_acc = 0.0
         self.batch_count = 0.0
 
     def update_stats(self,
