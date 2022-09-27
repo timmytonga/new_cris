@@ -135,10 +135,12 @@ def my_split_data(dataset, part1_split_fraction=0.5, seed=None, group_balanced=T
         group_balanced: sample each group via the same proportion instead of sampling indiscriminately.
     """
     if group_balanced:
+        print("*** WARNING: Splitting per group instead of splitting the dataset randomly ***")
         part1_idxs, part2_idxs = get_group_balanced_sampled_indices(dataset, part1_split_fraction)
         part1, part2 = Subset(dataset, part1_idxs), Subset(dataset, part2_idxs)
         return part1, part2
     # else not group_balanced
+    print("*** [utils/my_split_data] Splitting dataset randomly ***")
     if type(dataset) == Subset:  # note that this Subset is data.folds.Subset
         idxs = np.random.permutation(dataset.indices)
         data_fixed = dataset.dataset

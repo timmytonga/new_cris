@@ -68,6 +68,7 @@ def get_standard_args(dataset, model, lr, wd, gpu, seed, wandb, log_dir, n_epoch
         "num_folds_per_sweep": 5,
         "use_normalized_loss": False,
         "automatic_adjustment": False,
+        "per_group_splitting": False,
         "generalization_adjustment": "0.0",
         "minimum_variational_weight": 0,
         "part": part,
@@ -305,6 +306,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part1_args.run_test = args.run_test
     main_part1_args.batch_size = args.batch_size
     main_part1_args.reduce_val_fraction = args.reduce_val_fraction
+    main_part1_args.per_group_splitting = args.per_group_splitting
 
     part1_log_lr = args.part1_lr  # this is to help with resuming the correct model
     if args.part1_resume_epoch >= 0:
@@ -329,6 +331,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     main_part2_args.batch_size = args.part2_batch_size
     main_part2_args.part2_only_last_layer = not args.part2_train_full
     main_part2_args.reduce_val_fraction = args.reduce_val_fraction
+    main_part2_args.per_group_splitting = args.per_group_splitting
 
     RUN_PART2 = not args.no_part2
 
@@ -366,9 +369,14 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
     for p in args.p:
         # prep part 1 and 2 proportions params
         if args.val_split:
+            print("*** Val_split is activate: ignoring part1_split_proportion (should be None) *** ")
             main_part1_args.val_split_proportion = p
             main_part2_args.val_split_proportion = p
             tau_norm_args.val_split_proportion = p
+
+            main_part1_args.part1_split_proportion = None
+            main_part2_args.part1_split_proportion = None
+            tau_norm_args.part1_split_proportion = None
         else:
             main_part1_args.val_split_proportion = 0  # Don't really wanna set this to anything non-zero here...
             main_part2_args.val_split_proportion = 0
@@ -382,7 +390,7 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
         pname = pname_stem + str(p)
         stem = f"{'all' if (args.part1_use_all_data or args.val_split) else pname}{extra_part1}" \
                f"_wd{args.part1_wd}_lr{part1_log_lr}"
-        stem += f"_valfrac{args.reduce_val_fraction}"
+        # stem += f"_valfrac{args.reduce_val_fraction}"
         root_log = os.path.join(mainargs.root_log, stem)
         main_part1_args.log_dir = os.path.join(root_log, f"part1_s{args.seed}")
 
@@ -398,10 +406,10 @@ def set_args_and_run_sweep(mainargsConstructor, args, PART2_USE_OLD_MODEL=True):
         for part1_model_epoch in p1me:
             main_part2_args.part1_model_epoch = part1_model_epoch
             print(f"Running {pname} and p1me={part1_model_epoch}")
-            main_part2_args.log_dir = os.path.join(root_log, f"part2_{oll_part2}{part1_model_epoch}{extra_part2}_"
-                                                             f"{args.part2_loss_type}_{pname}_wd{args.part2_wd}"
-                                                             f"_lr{part2_log_lr}"
-                                                             f"_s{args.seed}")
+            part2_log_dir_name = f"part2_{oll_part2}{part1_model_epoch}{extra_part2}_" \
+                                 f"{args.part2_loss_type}_{pname}_wd{args.part2_wd}_lr{part2_log_lr}_s{args.seed}"
+            part2_log_dir_name += f"_valfrac{args.reduce_val_fraction}"
+            main_part2_args.log_dir = os.path.join(root_log, part2_log_dir_name)
             tau_norm_args.log_dir = os.path.join(main_part2_args.log_dir, "tau_norm")
             if RUN_PART2:
                 my_run_expt.main(main_part2_args)
@@ -421,7 +429,7 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                              "The rest of the validation set is used for validation."
                              "This automatically use the full train set to train part1. ")
     parser.add_argument("--reduce_val_fraction", type=float, default=1,
-                        help="Use only this fraction of the validation set. "
+                        help="Use only this fraction of the validation set for part2. "
                              "Useful for to simulate the extremely limited group label setting.")
 
     parser.add_argument("--no_wandb", action="store_true", default=False)
@@ -472,6 +480,10 @@ def set_two_parts_args(seed=0, p=(0.3, 0.5, 0.7), gpu=0,
                         help="By default we are only retraining the last layer for part2. "
                              "Set this if want to retrain all.")
     parser.add_argument("--part2_save_best", action="store_true", default=False)
+    parser.add_argument("--per_group_splitting", action="store_true", default=False,
+                        help="When splitting dataset, split each group individually instead of the whole dataset"
+                             "to ensure that when one group is too small, one split doesn't contain all the members of"
+                             "that group. ")
 
     parser.add_argument("--jigsaw_use_group", choices=MyCivilCommentsArgs.choices, default='any_identity',
                         help="Specify which group to use. Can specify multiple groups.")

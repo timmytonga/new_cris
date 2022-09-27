@@ -53,7 +53,8 @@ def main(args):
             run_name = f"{'all' if args.part1_use_all_data else pname}" + f"_seed{args.seed}"
         elif args.part == 2:  # part2
             job_type = f"part2{pname}{'_oll' if args.part2_only_last_layer else ''}" \
-                       f"{args.part1_model_epoch}" \
+                       f"{args.part1_model_epoch}"\
+                       f"_valfrac{args.reduce_val_fraction}" \
                        f"_{'rgl' if args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}" \
                        f"{'_rw' if args.reweight_groups else ''}" \
                        f"{'_ga' if args.generalization_adjustment != '0.0' else ''}"
@@ -122,20 +123,29 @@ def main(args):
         if args.resume:  # we should have split our data by now
             part1and2_data = torch.load(os.path.join(args.log_dir, f"part1and2_data_{pname}"))
             part1_data = part1and2_data['part1']  # part2_data = part1and2_data['part2']
+            if os.path.exists(os.path.join(args.log_dir, f"new_val_data_{pname}")):
+                val_data = torch.load(os.path.join(args.log_dir, f"new_val_data_{pname}"))
         else:  # we need to split data
             logger.write(f"*** PART1: SPLITTING {'TRAIN' if args.val_split_proportion == 0 else 'VAL'} DATA ***\n")
             if args.reduce_val_fraction != 1:
                 assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
-                logger.write(f"*** Using only {args.reduce_val_fraction} fraction of the validation set ***\n")
-                val_data, _ = make_data_split(val_data, args.reduce_val_fraction, args.seed)
+                logger.write(f"*** Using only {args.reduce_val_fraction} fraction of the validation set on part2 ***\n")
+                part2_data, _ = make_data_split(val_data, args.reduce_val_fraction,
+                                              args.seed, group_balanced=args.per_group_splitting)
+                # for part2 we are validating on the same data... Must change the log dir now
+                torch.save(part2_data, os.path.join(args.log_dir, f"part2_val_data_{pname}"))
             if args.val_split_proportion == 0:  # we are NOT splitting validation
-                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
+                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion,
+                                                         args.seed, group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
             else:  # we ARE splitting validation
-                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed)
+                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion,
+                                                           args.seed, group_balanced=args.per_group_splitting)
                 val_data, old_val_data = new_val_data, val_data  # we are doing validation on this split only now!!!
+                # if we are splitting validation, part1 is just train_data
                 part1and2_data = {"part1": train_data, "part2": part2_data}
                 torch.save(new_val_data, os.path.join(args.log_dir, f"new_val_data_{pname}"))
+                torch.save(new_val_data, os.path.join(args.log_dir, f"part2_val_data_{pname}"))
 
             torch.save(part1and2_data, os.path.join(args.log_dir, f"part1and2_data_{pname}"))
 
@@ -180,13 +190,15 @@ def main(args):
                 part2_data = torch.load(data_path)["part2"]
             elif args.val_split_proportion > 0:
                 logger.write(f"[Data path not found] Using val split. Creating Part2 data from validation set...\n ")
-                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed)
+                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed
+                                                           , group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": train_data, "part2": part2_data}
                 torch.save(new_val_data, os.path.join(part1_dir, f"new_val_data_{pname}"))
                 torch.save(part1and2_data, data_path)
             else:  # this is mainly to avoid retraining for all data on part1
                 logger.write(f"[WARNING?] DATA PATH NOT FOUND! CREATING NEW SPLITS INSTEAD! \n\t {data_path}\n")
-                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed)
+                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed
+                                                         , group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
                 torch.save(part1and2_data, data_path)
 
@@ -492,6 +504,10 @@ if __name__ == "__main__":
                         help="Use real group labels to retrain part2")
     parser.add_argument("--multi_subsample", action="store_true", default=False,
                         help="We re-subsample every epoch instead of just subsampling once")
+    parser.add_argument("--per_group_splitting", action="store_true", default=False,
+                        help="When splitting dataset, split each group individually instead of the whole dataset"
+                             "to ensure that when one group is too small, one split doesn't contain all the members of"
+                             "that group. ")
 
     args = parser.parse_args()
 
