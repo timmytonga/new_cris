@@ -182,6 +182,7 @@ def main(args):
     elif args.part == 2:  # part2
         # first we need to get the correct data for part 2 from the saved dict in part1
         part1_dir = os.path.join(root_log_dir, f"part1_s{args.seed}")
+
         if args.part1_split_proportion == 1:
             part2_data = train_data
         else:  # we are loading data from the split obtain in part1
@@ -190,6 +191,15 @@ def main(args):
                 part2_data = torch.load(data_path)["part2"]
             elif args.val_split_proportion > 0:
                 logger.write(f"[Data path not found] Using val split. Creating Part2 data from validation set...\n ")
+                if args.reduce_val_fraction != 1:  # need to reduce fraction and use that to train and val
+                    assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
+                    logger.write(
+                        f"*** Using only {args.reduce_val_fraction} fraction of the validation set on part2 ***\n")
+                    val_data, _ = make_data_split(val_data, args.reduce_val_fraction,
+                                                  args.seed, group_balanced=args.per_group_splitting)
+
+                # if args.val_split_proportion == 1, then part2_data is same as new_val_data
+                # which is the same as val_data
                 part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed
                                                            , group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": train_data, "part2": part2_data}
