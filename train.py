@@ -300,8 +300,8 @@ def train(
             wandb=wandb,
         )
 
-        logger.write(f"\nValidation:\n")
         if dataset["val_data"] is not None:
+            logger.write(f"\nValidation:\n")
             val_loss_computer = LossComputer(
                 criterion,
                 loss_type=args.loss_type,
@@ -400,9 +400,17 @@ def train(
         if curr_val_wg_acc > best_val_wg_acc:
             best_val_wg_epoch = epoch
             best_val_wg_acc = curr_val_wg_acc
+            summary_stat_dict = {'val/best_wg_acc': best_val_wg_acc,
+                                 'val/best_wg_epoch': best_val_wg_epoch}
             logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc:.4f}\n")
+            if dataset["test_data"] is not None:
+                test_wg_from_best_val_wg = test_loss_computer.avg_group_acc
+                test_avg_from_best_val_wg = test_loss_computer.avg_acc
+                summary_stat_dict['test/avg_from_best_val_wg'] = test_avg_from_best_val_wg
+                summary_stat_dict['test/wg_from_best_val_wg'] = test_wg_from_best_val_wg
+                logger.write(f"[e={best_val_wg_epoch}] Current Best Test Wg Acc = {test_wg_from_best_val_wg:.4f}\n")
             if wandb is not None:
-                wandb.log({'val/best_wg_acc': best_val_wg_acc})
+                wandb.run.summary.update(summary_stat_dict)
             if args.save_best:
                 torch.save(model, os.path.join(args.log_dir, "best_wg_acc_model.pth"))
 
@@ -428,3 +436,7 @@ def train(
                     f"  {train_loss_computer.get_group_name(group_idx)}:\t"
                     f"adj = {train_loss_computer.adj[group_idx]:.3f}\n")
         logger.write("\n")
+
+    logger.write("Finishing training...")
+    if wandb is not None:
+        print(f"{str(wandb.run.summary)}")
