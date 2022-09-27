@@ -214,7 +214,7 @@ def train(
     )
 
     # BERT uses its own scheduler and optimizer
-    if (args.model.startswith("bert") and args.use_bert_params): 
+    if args.model.startswith("bert") and args.use_bert_params:
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -397,6 +397,7 @@ def train(
             save_onnx_model(model, x, os.path.join(args.log_dir, "last_model.pth"))
 
         curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
+        print(f"Curr_val_wg_acc={curr_val_wg_acc:.4f}")
         if curr_val_wg_acc > best_val_wg_acc:
             best_val_wg_epoch = epoch
             best_val_wg_acc = curr_val_wg_acc
@@ -404,11 +405,11 @@ def train(
                                  'val/best_wg_epoch': best_val_wg_epoch}
             logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc:.4f}\n")
             if dataset["test_data"] is not None:
-                test_wg_from_best_val_wg = test_loss_computer.avg_group_acc
+                test_wg_from_best_val_wg = min(test_loss_computer.avg_group_acc)
                 test_avg_from_best_val_wg = test_loss_computer.avg_acc
                 summary_stat_dict['test/avg_from_best_val_wg'] = test_avg_from_best_val_wg
                 summary_stat_dict['test/wg_from_best_val_wg'] = test_wg_from_best_val_wg
-                logger.write(f"[e={best_val_wg_epoch}] Current Best Test Wg Acc = {test_wg_from_best_val_wg:.4f}\n")
+                print(f"[e={best_val_wg_epoch}] Current Best Test Wg Acc = {test_wg_from_best_val_wg:.4f}\n")
             if wandb is not None:
                 wandb.run.summary.update(summary_stat_dict)
             if args.save_best:

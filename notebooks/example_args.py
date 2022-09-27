@@ -197,7 +197,8 @@ class MyMultinliArgs(TwoPartArgs):
                          n_epochs, part1_save_every, self.ROOT_LOG,
                          metadata_path, metadata_csv_path, split_proportion,
                          confounder_names, target_name,
-                         project_name, show_progress, part1_use_all_data=part1_use_all_data)
+                         project_name, show_progress, part1_use_all_data=part1_use_all_data,
+                         log_every=301)
 
 
 class MyCelebaArgs(TwoPartArgs):
