@@ -301,36 +301,39 @@ def train(
         )
 
         logger.write(f"\nValidation:\n")
-        val_loss_computer = LossComputer(
-            criterion,
-            loss_type=args.loss_type,
-            dataset=dataset["val_data"],
-            alpha=args.alpha,
-            gamma=args.gamma,
-            adj=adjustments,
-            step_size=args.robust_step_size,
-            normalize_loss=args.use_normalized_loss,
-            btl=args.btl,
-            min_var_weight=args.minimum_variational_weight,
-            joint_dro_alpha=args.joint_dro_alpha,
-        )
-        run_epoch(
-            epoch,
-            model,
-            optimizer,
-            dataset["val_loader"],
-            val_loss_computer,
-            logger,
-            val_csv_logger,
-            args,
-            is_training=False,
-            csv_name=csv_name,
-            wandb_group=f"{wandb_root_group}val",
-            wandb=wandb,
-        )
-        if args.dataset == 'jigsaw':
-            output_loc = os.path.join(args.log_dir, f"output_val_epoch_{epoch}.csv")
-            utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=None)
+        if dataset["val_data"] is not None:
+            val_loss_computer = LossComputer(
+                criterion,
+                loss_type=args.loss_type,
+                dataset=dataset["val_data"],
+                alpha=args.alpha,
+                gamma=args.gamma,
+                adj=adjustments,
+                step_size=args.robust_step_size,
+                normalize_loss=args.use_normalized_loss,
+                btl=args.btl,
+                min_var_weight=args.minimum_variational_weight,
+                joint_dro_alpha=args.joint_dro_alpha,
+            )
+            run_epoch(
+                epoch,
+                model,
+                optimizer,
+                dataset["val_loader"],
+                val_loss_computer,
+                logger,
+                val_csv_logger,
+                args,
+                is_training=False,
+                csv_name=csv_name,
+                wandb_group=f"{wandb_root_group}val",
+                wandb=wandb,
+            )
+            if args.dataset == 'jigsaw':
+                output_loc = os.path.join(args.log_dir, f"output_val_epoch_{epoch}.csv")
+                utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=None)
+        else:  # validation is None
+            val_loss_computer = train_loss_computer
 
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
