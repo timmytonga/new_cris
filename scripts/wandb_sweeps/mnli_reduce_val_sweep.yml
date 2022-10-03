@@ -21,12 +21,14 @@ command:
   - --part2_loss_type=group_dro
   - --part2_save_best
 parameters:
+  seed:
+    values: [0, 1, 2]
   reduce_val_fraction:
     value: 0.05
   part2_lr:
     values: [1e-2, 1e-3, 1e-4, 1e-5]
   part2_wd:
-    values: [1e-1, 1e-2, 1e-3]
+    values: [1e-1, 1e-2, 1e-3, 0]
   part2_batch_size:
     values: [8, 16, 32]
 
