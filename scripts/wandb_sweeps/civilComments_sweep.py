@@ -34,7 +34,7 @@ sweep_configuration = {'program': f'scripts/{dataset_name}_sweep.py',
                            'jigsaw_use_group':
                                {'values': ['black', 'any_identity']},
                            'part2_batch_size':
-                               {'values': [8, 16, 32]},
+                               {'values': [24, 16, 32]},
                            'part2_lr':
                                {'values': ['1e-2', '1e-3', '1e-4', '1e-5']},
                            'part2_wd':
