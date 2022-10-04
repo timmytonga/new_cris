@@ -444,3 +444,4 @@ def get_civil_comments_stats(epoch, file_path, valortest=None, wandb=None, logge
     if wandb is not None:
         wandb.log(group_acc_dict)
     print(f"finish get_civil_comments_stats for {valortest} epoch {epoch}")
+    return group_acc_dict[f"{valortest}/true_wg_acc"]

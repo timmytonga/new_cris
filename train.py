@@ -19,24 +19,25 @@ import os
 
 # device = torch.device('cuda:0')
 criterion = torch.nn.CrossEntropyLoss(reduction="none")
+SKIP_TEST_EPOCH_FOR_LOWER_VAL_WG = True
 
 
 def run_epoch(
-    epoch,
-    model,
-    optimizer,
-    loader,
-    loss_computer,
-    logger,
-    csv_logger,
-    args,
-    is_training,
-    show_progress=False,
-    log_every=50,
-    scheduler=None,
-    csv_name=None,
-    wandb_group=None,
-    wandb=None,
+        epoch,
+        model,
+        optimizer,
+        loader,
+        loss_computer,
+        logger,
+        csv_logger,
+        args,
+        is_training,
+        show_progress=False,
+        log_every=50,
+        scheduler=None,
+        csv_name=None,
+        wandb_group=None,
+        wandb=None,
 ):
     """
     scheduler is only used inside this function if model is bert.
@@ -61,7 +62,7 @@ def run_epoch(
             y = batch[1]
             g = batch[2]
             data_idx = batch[3]
-            
+
             if args.model.startswith("bert"):  # handles bert:
                 input_ids = x[:, :, 0]
                 input_masks = x[:, :, 1]
@@ -81,7 +82,7 @@ def run_epoch(
             # loss_main = criterion(outputs, y).mean()
             # update model
             if is_training:
-                if (args.model.startswith("bert") and args.use_bert_params): 
+                if (args.model.startswith("bert") and args.use_bert_params):
                     loss_main.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                    args.max_grad_norm)
@@ -147,9 +148,9 @@ def run_epoch(
             #     os.makedirs(save_dir)
             output_df.to_csv(
                 os.path.join(save_dir,
-                                f"output_{wandb_group}_epoch_{epoch}.csv"))
+                             f"output_{wandb_group}_epoch_{epoch}.csv"))
             print("Saved", os.path.join(save_dir,
-                                f"output_{wandb_group}_epoch_{epoch}.csv"))
+                                        f"output_{wandb_group}_epoch_{epoch}.csv"))
         # log the final epoch -- might be repetitive: can just move code up there around?
         if (not is_training) or loss_computer.batch_count > 0:
             run_stats = loss_computer.get_stats(model, args)
@@ -171,18 +172,18 @@ def run_epoch(
 
 
 def train(
-    model,
-    criterion,
-    dataset,
-    logger,
-    train_csv_logger,
-    val_csv_logger,
-    test_csv_logger,
-    args,
-    epoch_offset,
-    csv_name=None,
-    wandb=None,
-    wandb_root_group=""
+        model,
+        criterion,
+        dataset,
+        logger,
+        train_csv_logger,
+        val_csv_logger,
+        test_csv_logger,
+        args,
+        epoch_offset,
+        csv_name=None,
+        wandb=None,
+        wandb_root_group=""
 ):
     if args.dataset == 'jigsaw':
         print("Jigsaw dataset... Performing validation on overlapping groups. ")
@@ -223,7 +224,7 @@ def train(
                     if not any(nd in n for nd in no_decay)
                 ],
                 "weight_decay":
-                args.weight_decay,
+                    args.weight_decay,
             },
             {
                 "params": [
@@ -231,7 +232,7 @@ def train(
                     if any(nd in n for nd in no_decay)
                 ],
                 "weight_decay":
-                0.0,
+                    0.0,
             },
         ]
         optimizer = AdamW(optimizer_grouped_parameters,
@@ -271,7 +272,7 @@ def train(
     if args.multi_subsample:
         old_idxs = train_loader.dataset.dataset.indices
 
-    print(f"Training for {args.n_epochs-epoch_offset} epochs...")
+    print(f"Training for {args.n_epochs - epoch_offset} epochs...")
     for epoch in range(epoch_offset, epoch_offset + args.n_epochs):
         logger.write("\nEpoch [%d]:\n" % epoch)
         logger.write(f"Training:\n")
@@ -299,6 +300,9 @@ def train(
             wandb_group=f"{wandb_root_group}train",
             wandb=wandb,
         )
+        if args.dataset == 'jigsaw':
+            output_loc = os.path.join(args.log_dir, f"output_train_epoch_{epoch}.csv")
+            jigsaw_train_true_wg = utils.get_civil_comments_stats(epoch, output_loc, 'train', wandb=wandb, logger=None)
 
         if dataset["val_data"] is not None:
             logger.write(f"\nValidation:\n")
@@ -331,44 +335,59 @@ def train(
             )
             if args.dataset == 'jigsaw':
                 output_loc = os.path.join(args.log_dir, f"output_val_epoch_{epoch}.csv")
-                utils.get_civil_comments_stats(epoch, output_loc, valortest='val', wandb=wandb, logger=None)
+                jigsaw_val_true_wg = utils.get_civil_comments_stats(epoch, output_loc,
+                                                                    valortest='val', wandb=wandb, logger=None)
         else:  # validation is None
             val_loss_computer = train_loss_computer
 
+        # get curr val_wg so that we skip running test if we don't set the flag
+
+        curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
+        if args.dataset == 'jigsaw':  # we use the true (i.e. overlapping groups) wg acc instead
+            curr_val_wg_acc = jigsaw_val_true_wg if dataset["val_data"] is not None else jigsaw_train_true_wg
+
+        # we do not run test if the curr val wg acc is worse than the best val wg acc so far.
+        SKIP_TEST_FLAG = SKIP_TEST_EPOCH_FOR_LOWER_VAL_WG and curr_val_wg_acc < best_val_wg_acc
+
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
-            print(f"[{epoch}] Running test...")
-            test_loss_computer = LossComputer(
-                criterion,
-                loss_type=args.loss_type,
-                dataset=dataset["test_data"],
-                step_size=args.robust_step_size,
-                alpha=args.alpha,
-                gamma=args.gamma,
-                adj=adjustments,
-                normalize_loss=args.use_normalized_loss,
-                btl=args.btl,
-                min_var_weight=args.minimum_variational_weight,
-                joint_dro_alpha=args.joint_dro_alpha,
-            )
-            run_epoch(
-                epoch,
-                model,
-                optimizer,
-                dataset["test_loader"],
-                test_loss_computer,
-                None,
-                test_csv_logger,
-                args,
-                is_training=False,
-                csv_name=csv_name,
-                wandb_group=f"{wandb_root_group}test",
-                wandb=wandb,
-            )
-            print(f"[{epoch}] Done running test...")
-            if args.dataset == 'jigsaw':
-                output_loc = os.path.join(args.log_dir, f"output_test_epoch_{epoch}.csv")
-                utils.get_civil_comments_stats(epoch, output_loc, valortest='test', wandb=wandb, logger=None)
+            if SKIP_TEST_FLAG:
+                logger.write(f"[{epoch}] *** Skipping test since curr val wg is not better than best wg... ***\n")
+            else:
+                print(f"[{epoch}] Running test...")
+                test_loss_computer = LossComputer(
+                    criterion,
+                    loss_type=args.loss_type,
+                    dataset=dataset["test_data"],
+                    step_size=args.robust_step_size,
+                    alpha=args.alpha,
+                    gamma=args.gamma,
+                    adj=adjustments,
+                    normalize_loss=args.use_normalized_loss,
+                    btl=args.btl,
+                    min_var_weight=args.minimum_variational_weight,
+                    joint_dro_alpha=args.joint_dro_alpha,
+                )
+                run_epoch(
+                    epoch,
+                    model,
+                    optimizer,
+                    dataset["test_loader"],
+                    test_loss_computer,
+                    None,
+                    test_csv_logger,
+                    args,
+                    is_training=False,
+                    csv_name=csv_name,
+                    wandb_group=f"{wandb_root_group}test",
+                    wandb=wandb,
+                )
+                print(f"[{epoch}] Done running test...")
+                if args.dataset == 'jigsaw':
+                    output_loc = os.path.join(args.log_dir, f"output_test_epoch_{epoch}.csv")
+                    jigsaw_test_true_wg = utils.get_civil_comments_stats(epoch,
+                                                                         output_loc, valortest='test', wandb=wandb,
+                                                                         logger=None)
 
         # Inspect learning rates
         if (epoch + 1) % 1 == 0:
@@ -396,7 +415,6 @@ def train(
             torch.save(model, os.path.join(args.log_dir, "last_model.pth"))
             save_onnx_model(model, x, os.path.join(args.log_dir, "last_model.pth"))
 
-        curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
         print(f"Curr_val_wg_acc={curr_val_wg_acc:.4f}")
         if curr_val_wg_acc > best_val_wg_acc:
             best_val_wg_epoch = epoch
@@ -405,7 +423,8 @@ def train(
                                  'val/best_wg_epoch': best_val_wg_epoch}
             logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc:.4f}\n")
             if dataset["test_data"] is not None:
-                test_wg_from_best_val_wg = min(test_loss_computer.avg_group_acc)
+                test_wg_from_best_val_wg = min(test_loss_computer.avg_group_acc) if args.dataset != 'jigsaw' \
+                    else jigsaw_test_true_wg
                 test_avg_from_best_val_wg = test_loss_computer.avg_acc
                 summary_stat_dict['test/avg_from_best_val_wg'] = test_avg_from_best_val_wg
                 summary_stat_dict['test/wg_from_best_val_wg'] = test_wg_from_best_val_wg
