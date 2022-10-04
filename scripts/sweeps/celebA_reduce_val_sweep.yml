@@ -1,5 +1,5 @@
 program: scripts/celebA_sweep.py
-name: CelebA reduce val sweep
+name: CelebA reduce val sweep per group splitting
 project: ValRgl_CelebA
 description: Grid search with prechosen values
 method: grid
@@ -20,6 +20,7 @@ command:
   - --seed=2
   - --part2_loss_type=group_dro
   - --part2_save_best
+  - --per_group_splitting
 parameters:
   reduce_val_fraction:
     values: [0.2, 0.1, 0.05]
@@ -28,6 +29,6 @@ parameters:
   part2_wd:
     values: [1e-1, 1e-2, 1e-3]
   part2_batch_size:
-    values: [8, 16, 32]
+    values: [8, 16]
 
 

@@ -24,9 +24,9 @@ parameters:
   reduce_val_fraction:
     value: 0.05
   part2_lr:
-    values: [1e-2, 1e-3, 1e-4, 1e-5]
+    values: [1e-4, 1e-5]
   part2_wd:
-    values: [1e-1, 1e-2, 1e-3]
+    values: [1e-1, 1e-2, 0]
   part2_batch_size:
     values: [8, 16, 32]
 

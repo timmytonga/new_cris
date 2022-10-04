@@ -1,8 +1,8 @@
 program: scripts/cub_sweep.py
-name: Waterbird reduce val sweep
+name: Waterbird reduce val sweep pergroupsplit
 project: ValRgl_CUB
 description: Grid search with prechosen values
-method: grid
+method: random
 metric:
   goal: maximize
   name: test/wg_acc
@@ -11,6 +11,7 @@ command:
   - ${interpreter}
   - ${program}
   - ${args}
+  - ${args_no_boolean_flags}
   - --val_split
   - --part1_save_best
   - --run_test
@@ -20,14 +21,16 @@ command:
   - --seed=0
   - --part2_loss_type=group_dro
   - --part2_save_best
+  - --part2_n_epochs=200
+  - --per_group_splitting
 parameters:
   reduce_val_fraction:
-    values: [0.2, 0.1, 0.05]
+    values: [0.2, 0.05]
   part2_lr:
-    values: [1e-2, 1e-3, 1e-4, 1e-5]
+    values: [1e-4, 1e-5]
   part2_wd:
     values: [1e-1, 1e-2, 1e-3]
   part2_batch_size:
-    values: [8, 16, 32]
+    values: [8, 16]
 
 
