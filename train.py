@@ -352,7 +352,8 @@ def train(
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
             if SKIP_TEST_FLAG:
-                logger.write(f"[{epoch}] *** Skipping test since curr val wg is not better than best wg... ***\n")
+                logger.write(f"[{epoch}] *** Skipping test since curr val wg={curr_val_wg_acc:.4f} "
+                             f"is not better than best wg={best_val_wg_acc:.4f}... ***\n")
             else:
                 print(f"[{epoch}] Running test...")
                 test_loss_computer = LossComputer(

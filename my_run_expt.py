@@ -219,8 +219,8 @@ def main(args):
         if 0 < args.val_split_proportion < 1:  # furthermore, we need to load the correct validation data for part2
             val_data = torch.load(os.path.join(part1_dir, f"new_val_data_{pname}"))
         if args.val_split_proportion == 1:  # this means that train data and val data of part2 is the same
-            # don't need to run val again
-            val_data = None
+            # don't need to run val again?? Actually might need to in order to obtain a stable result for validation...
+            val_data = part2_data  # None to not run val again
 
         # Now we either create a loader that uses real group labels or generate pseudogroup labels
         if args.use_real_group_labels:
