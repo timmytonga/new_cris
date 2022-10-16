@@ -13,6 +13,7 @@ from data.folds import Subset, ConcatDataset
 from data.data import dataset_attributes, shift_types
 import data
 from data.utils import ROOT_DIR_PATH
+from data import dro_dataset
 import pandas as pd
 from pprint import pformat
 
@@ -445,3 +446,47 @@ def get_civil_comments_stats(epoch, file_path, valortest=None, wandb=None, logge
         wandb.log(group_acc_dict)
     print(f"finish get_civil_comments_stats for {valortest} epoch {epoch}")
     return group_acc_dict[f"{valortest}/true_wg_acc"]
+
+
+def make_data_split(data, split_proportion, seed, group_balanced):
+    """
+    Set split_proportion = 1 to make copies
+    """
+    # then split it into part1 containing f*n examples of trainset and part2 containing the rest
+    if split_proportion < 1:
+        part1, part2 = my_split_data(data, part1_split_fraction=split_proportion,
+                                     seed=seed, group_balanced=group_balanced)
+        part1_data = dro_dataset.DRODataset(
+            part1,
+            process_item_fn=None,
+            n_groups=data.n_groups,
+            n_classes=data.n_classes,
+            group_str_fn=data.group_str)
+        part2_data = dro_dataset.DRODataset(
+            part2,
+            process_item_fn=None,
+            n_groups=data.n_groups,
+            n_classes=data.n_classes,
+            group_str_fn=data.group_str)
+    elif split_proportion == 1:  # this means we use the full dataset in both parts
+        part1_data, part2_data = data, data
+    else:
+        raise NotImplementedError
+    return part1_data, part2_data
+
+
+def split_validation(args, logger, val_data, train_data, pname):
+    if args.reduce_val_fraction != 1:  # need to reduce fraction and use that to train and val
+        assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
+        logger.write(
+            f"*** Using only {args.reduce_val_fraction} fraction of the validation set on part2 ***\n")
+        val_data, _ = make_data_split(val_data, args.reduce_val_fraction,
+                                      args.seed, group_balanced=args.per_group_splitting)
+
+    # if args.val_split_proportion == 1, then part2_data is same as new_val_data
+    # which is the same as val_data
+    part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed
+                                               , group_balanced=args.per_group_splitting)
+    part1and2_data = {"part1": train_data, "part2": part2_data}
+    return part1and2_data, new_val_data
+

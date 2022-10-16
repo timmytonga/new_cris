@@ -406,9 +406,9 @@ def train(
             scheduler.step(
                 val_loss)  # scheduler step to update lr at the end of epoch
 
-        if epoch < 5 or epoch % args.save_step == 0:
-            torch.save(model, os.path.join(args.log_dir,
-                                           "%d_model.pth" % epoch))
+        # if epoch < 5 or epoch % args.save_step == 0:
+        #     torch.save(model, os.path.join(args.log_dir,
+        #                                    "%d_model.pth" % epoch))
 
         if args.save_last:
             # for saving

@@ -41,6 +41,7 @@ def main(args):
 
     # pname is a str for indicating the split propotion of either part1 OR validation set
     pname = f"valp{args.val_split_proportion}" if args.val_split_proportion > 0.0 else f"p{args.part1_split_proportion}"
+    pname += f"valfrac{args.reduce_val_fraction}"
     pname += f"g" if args.per_group_splitting else ""
 
     # setup wandb
@@ -54,7 +55,6 @@ def main(args):
         elif args.part == 2:  # part2
             job_type = f"part2{pname}{'_oll' if args.part2_only_last_layer else ''}" \
                        f"{args.part1_model_epoch}" \
-                       f"_valfrac{args.reduce_val_fraction}" \
                        f"_{'rgl' if args.use_real_group_labels else f'_pgl{args.part1_pgl_model_epoch}'}" \
                        f"{'_rw' if args.reweight_groups else ''}" \
                        f"{'_ga' if args.generalization_adjustment != '0.0' else ''}"
@@ -127,30 +127,13 @@ def main(args):
                 val_data = torch.load(os.path.join(args.log_dir, f"new_val_data_{pname}"))
         else:  # we need to split data
             logger.write(f"*** PART1: SPLITTING {'TRAIN' if args.val_split_proportion == 0 else 'VAL'} DATA ***\n")
-            if args.reduce_val_fraction != 1:
-                assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
-                logger.write(f"*** Using only {args.reduce_val_fraction} fraction of the validation set on part2 ***\n")
-                part2_data, _ = make_data_split(val_data, args.reduce_val_fraction,
-                                                args.seed, group_balanced=args.per_group_splitting)
-                # for part2 we are validating on the same data... Must change the log dir now
-                torch.save(part2_data, os.path.join(args.log_dir, f"part2_val_data_{pname}"))
             if args.val_split_proportion == 0:  # we are NOT splitting validation
-                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion,
+                part1_data, part2_data = utils.make_data_split(train_data, args.part1_split_proportion,
                                                          args.seed, group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
             else:  # we ARE splitting validation
-                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion,
-                                                           args.seed, group_balanced=args.per_group_splitting)
-                val_data, old_val_data = new_val_data, val_data  # we are doing validation on this split only now!!!
-                if args.val_split_proportion < 1:
-                    logger.write(f"*** Using the reduced validation for validation part1!!! ***\n")
-                else:
-                    logger.write(f"*** Using the original validation set for validation part1!!! ***\n")
-                # if we are splitting validation, part1 is just train_data
-                part1and2_data = {"part1": train_data, "part2": part2_data}
+                part1and2_data, new_val_data = utils.split_validation(args, logger, val_data, train_data, pname)
                 torch.save(new_val_data, os.path.join(args.log_dir, f"new_val_data_{pname}"))
-                torch.save(new_val_data, os.path.join(args.log_dir, f"part2_val_data_{pname}"))
-
             torch.save(part1and2_data, os.path.join(args.log_dir, f"part1and2_data_{pname}"))
 
         # Now setup the data to train the initial model
@@ -192,26 +175,17 @@ def main(args):
         else:  # we are loading data from the split obtain in part1
             data_path = os.path.join(part1_dir, f"part1and2_data_{pname}")
             if os.path.exists(data_path):
+                print(f"[Datapath found from part1] Loading from {data_path}.")
                 part2_data = torch.load(data_path)["part2"]
             elif args.val_split_proportion > 0:
                 logger.write(f"[Data path not found] Using val split. Creating Part2 data from validation set...\n ")
-                if args.reduce_val_fraction != 1:  # need to reduce fraction and use that to train and val
-                    assert 0 < args.reduce_val_fraction < 1, "reduce_val_fraction must be in (0,1)"
-                    logger.write(
-                        f"*** Using only {args.reduce_val_fraction} fraction of the validation set on part2 ***\n")
-                    val_data, _ = make_data_split(val_data, args.reduce_val_fraction,
-                                                  args.seed, group_balanced=args.per_group_splitting)
-
-                # if args.val_split_proportion == 1, then part2_data is same as new_val_data
-                # which is the same as val_data
-                part2_data, new_val_data = make_data_split(val_data, args.val_split_proportion, args.seed
-                                                           , group_balanced=args.per_group_splitting)
-                part1and2_data = {"part1": train_data, "part2": part2_data}
+                part1and2_data, new_val_data = utils.split_validation(args, logger, val_data, train_data, pname)
+                part2_data = part1and2_data['part2']
                 torch.save(new_val_data, os.path.join(part1_dir, f"new_val_data_{pname}"))
                 torch.save(part1and2_data, data_path)
             else:  # this is mainly to avoid retraining for all data on part1
                 logger.write(f"[WARNING?] DATA PATH NOT FOUND! CREATING NEW SPLITS INSTEAD! \n\t {data_path}\n")
-                part1_data, part2_data = make_data_split(train_data, args.part1_split_proportion, args.seed
+                part1_data, part2_data = utils.make_data_split(train_data, args.part1_split_proportion, args.seed
                                                          , group_balanced=args.per_group_splitting)
                 part1and2_data = {"part1": part1_data, "part2": part2_data}
                 torch.save(part1and2_data, data_path)
@@ -391,33 +365,6 @@ def main(args):
 
     if args.wandb:
         wandb.finish()
-
-
-def make_data_split(data, split_proportion, seed, group_balanced=GROUP_BALANCE_SAMPLING):
-    """
-    Set split_proportion = 1 to make copies
-    """
-    # then split it into part1 containing f*n examples of trainset and part2 containing the rest
-    if split_proportion < 1:
-        part1, part2 = my_split_data(data, part1_split_fraction=split_proportion,
-                                     seed=seed, group_balanced=group_balanced)
-        part1_data = dro_dataset.DRODataset(
-            part1,
-            process_item_fn=None,
-            n_groups=data.n_groups,
-            n_classes=data.n_classes,
-            group_str_fn=data.group_str)
-        part2_data = dro_dataset.DRODataset(
-            part2,
-            process_item_fn=None,
-            n_groups=data.n_groups,
-            n_classes=data.n_classes,
-            group_str_fn=data.group_str)
-    elif split_proportion == 1:  # this means we use the full dataset in both parts
-        part1_data, part2_data = data, data
-    else:
-        raise NotImplementedError
-    return part1_data, part2_data
 
 
 if __name__ == "__main__":

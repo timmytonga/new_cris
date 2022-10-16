@@ -1,6 +1,6 @@
 def get_default_sweep_config(dataset_name, project_name, args):
     return {'program': f'scripts/{dataset_name}_sweep.py',
-            'name': f'Seed {args.seed} p={args.p}',
+            'name': f'Seed {args.seed} p={args.p} new',
             'project': f'{project_name}_{dataset_name}',
             'description': 'Grid search with prechosen values',
             'method': 'grid',
@@ -10,6 +10,7 @@ def get_default_sweep_config(dataset_name, project_name, args):
                         '${program}',
                         '${args}',
                         '--val_split',
+                        '--per_group_splitting',
                         '--part1_save_best',
                         '--run_test',
                         '--part2_reweight',
