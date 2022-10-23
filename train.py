@@ -343,8 +343,8 @@ def train(
         # get curr val_wg so that we skip running test if we don't set the flag
 
         curr_val_wg_acc = min(val_loss_computer.avg_group_acc)
-        if args.dataset == 'jigsaw':  # we use the true (i.e. overlapping groups) wg acc instead
-            curr_val_wg_acc = jigsaw_val_true_wg if dataset["val_data"] is not None else jigsaw_train_true_wg
+        # if args.dataset == 'jigsaw':  # we use the true (i.e. overlapping groups) wg acc instead
+        #     curr_val_wg_acc = jigsaw_val_true_wg if dataset["val_data"] is not None else jigsaw_train_true_wg
 
         # we do not run test if the curr val wg acc is worse than the best val wg acc so far.
         SKIP_TEST_FLAG = SKIP_TEST_EPOCH_FOR_LOWER_VAL_WG and curr_val_wg_acc < best_val_wg_acc
@@ -424,8 +424,8 @@ def train(
                                  'val/best_wg_epoch': best_val_wg_epoch}
             logger.write(f"[e={best_val_wg_epoch}] Current Best Val Wg Acc = {best_val_wg_acc:.4f}\n")
             if dataset["test_data"] is not None:
-                test_wg_from_best_val_wg = min(test_loss_computer.avg_group_acc) if args.dataset != 'jigsaw' \
-                    else jigsaw_test_true_wg
+                test_wg_from_best_val_wg = min(test_loss_computer.avg_group_acc) \
+                    # if args.dataset != 'jigsaw' else jigsaw_test_true_wg
                 test_avg_from_best_val_wg = test_loss_computer.avg_acc
                 summary_stat_dict['test/avg_from_best_val_wg'] = test_avg_from_best_val_wg
                 summary_stat_dict['test/wg_from_best_val_wg'] = test_wg_from_best_val_wg
