@@ -347,7 +347,7 @@ def train(
         #     curr_val_wg_acc = jigsaw_val_true_wg if dataset["val_data"] is not None else jigsaw_train_true_wg
 
         # we do not run test if the curr val wg acc is worse than the best val wg acc so far.
-        SKIP_TEST_FLAG = SKIP_TEST_EPOCH_FOR_LOWER_VAL_WG and curr_val_wg_acc < best_val_wg_acc
+        SKIP_TEST_FLAG = SKIP_TEST_EPOCH_FOR_LOWER_VAL_WG and curr_val_wg_acc < best_val_wg_acc - 0.0001
 
         # Test set; don't print to avoid peeking
         if dataset["test_data"] is not None:
